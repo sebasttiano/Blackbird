@@ -72,7 +72,7 @@ func updateMetric(res http.ResponseWriter, req *http.Request) {
 		io.WriteString(res, fmt.Sprintf("%d\n", localStorage.counter[metricName]))
 	default:
 		res.WriteHeader(http.StatusBadRequest)
-		io.WriteString(res, fmt.Sprintf("ERROR: UNKNOWN METRIC TYPE. Only gauge and counter are available\n"))
+		io.WriteString(res, "ERROR: UNKNOWN METRIC TYPE. Only gauge and counter are available\n")
 		return
 	}
 
