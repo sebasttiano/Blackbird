@@ -1,14 +1,17 @@
 package main
 
 import (
-	"encoding/json"
+	"bytes"
 	"fmt"
 	"math/rand"
+	"net/http"
+	"reflect"
 	"runtime"
 	"time"
 )
 
 var pollInterval int = 2
+var reportInterval int64 = 10
 
 type Metrics struct {
 	Alloc,
@@ -43,13 +46,14 @@ type Metrics struct {
 }
 
 func main() {
-	NewMetrics(pollInterval)
+	GetMetrics(pollInterval)
 }
 
-func NewMetrics(pollInterval int) {
+func GetMetrics(pollInterval int) {
 	var m Metrics
 	var rtm runtime.MemStats
 	var interval = time.Duration(pollInterval) * time.Second
+	var startTime = time.Now().Unix()
 	m.PollCount = 0
 
 	for {
@@ -86,7 +90,42 @@ func NewMetrics(pollInterval int) {
 		m.PollCount += 1
 		m.RandomValue = rand.Float64()
 
-		b, _ := json.Marshal(m)
-		fmt.Println(string(b))
+		if (startTime-time.Now().Unix())%reportInterval == 0 {
+			iterateStructFieldsAndSend(m)
+		}
+	}
+}
+
+// iterateStructFieldsAndSend prepares url with values and make post request to server
+func iterateStructFieldsAndSend(input interface{}) {
+
+	fmt.Println(time.Now().Unix())
+	var posturl string
+
+	value := reflect.ValueOf(input)
+	numFields := value.NumField()
+	structType := value.Type()
+
+	for i := 0; i < numFields; i++ {
+		field := structType.Field(i)
+		fieldValue := value.Field(i)
+		if field.Name == "PollCount" {
+			posturl = fmt.Sprintf("http://localhost:8080/update/counter/%s/%d", field.Name, fieldValue)
+		} else {
+			posturl = fmt.Sprintf("http://localhost:8080/update/gauge/%s/%0.f", field.Name, fieldValue)
+		}
+
+		// Create an HTTP post request
+		r, err := http.NewRequest("POST", posturl, bytes.NewBuffer([]byte{}))
+		if err != nil {
+			panic(err)
+		}
+		r.Header.Add("Content-Type", "text/plain")
+		client := &http.Client{}
+		res, err := client.Do(r)
+		if err != nil {
+			panic(err)
+		}
+		defer res.Body.Close()
 	}
 }
