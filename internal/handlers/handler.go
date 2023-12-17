@@ -10,6 +10,12 @@ import (
 
 var localStorage MemStorage = NewMemStorage()
 
+func NewMetricHandler() http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/update/", http.StripPrefix("/update/", OnlyPostAllowed(http.HandlerFunc(UpdateMetric))))
+	return mux
+}
+
 // MemStorage Keeps gauge and counter
 type MemStorage struct {
 	gauge   map[string]float64
@@ -22,18 +28,6 @@ func NewMemStorage() MemStorage {
 		gauge:   make(map[string]float64),
 		counter: make(map[string]int64),
 	}
-}
-
-// middleware gets Handler, makes some validation and returns also Handler.
-func Middleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		// Only POST method allowed
-		if req.Method != http.MethodPost {
-			res.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-		next.ServeHTTP(res, req)
-	})
 }
 
 // UpdateMetric handles update metrics request
@@ -57,7 +51,7 @@ func UpdateMetric(res http.ResponseWriter, req *http.Request) {
 		localStorage.gauge[metricName] = valueFloat
 		res.Header().Set("Content-type", "text/plain")
 		res.WriteHeader(http.StatusOK)
-		io.WriteString(res, fmt.Sprintf("%f\n", localStorage.gauge[metricName]))
+		io.WriteString(res, fmt.Sprintf("%0.2f\n", localStorage.gauge[metricName]))
 	case "counter":
 		metricName := incomingParams[1]
 		valueInt, err := strconv.ParseInt(incomingParams[2], 10, 64)

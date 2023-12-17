@@ -13,9 +13,6 @@ func main() {
 }
 
 func run() error {
-	mux := http.NewServeMux()
-	mux.Handle("/update/", http.StripPrefix("/update/", handlers.Middleware(http.HandlerFunc(handlers.UpdateMetric))))
-
-	err := http.ListenAndServe(`localhost:8080`, mux)
+	err := http.ListenAndServe(`localhost:8080`, handlers.NewMetricHandler())
 	return err
 }

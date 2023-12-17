@@ -46,10 +46,10 @@ type Metrics struct {
 }
 
 func main() {
-	GetMetrics(pollInterval)
+	GetMetrics(pollInterval, reportInterval)
 }
 
-func GetMetrics(pollInterval int) {
+func GetMetrics(pollInterval int, reportInterval int64) {
 	var m Metrics
 	var rtm runtime.MemStats
 	var interval = time.Duration(pollInterval) * time.Second
@@ -99,7 +99,6 @@ func GetMetrics(pollInterval int) {
 // iterateStructFieldsAndSend prepares url with values and make post request to server
 func iterateStructFieldsAndSend(input interface{}) {
 
-	fmt.Println(time.Now().Unix())
 	var posturl string
 
 	value := reflect.ValueOf(input)
@@ -110,9 +109,9 @@ func iterateStructFieldsAndSend(input interface{}) {
 		field := structType.Field(i)
 		fieldValue := value.Field(i)
 		if field.Name == "PollCount" {
-			posturl = fmt.Sprintf("http://localhost:8080/update/counter/%s/%d", field.Name, fieldValue)
+			posturl = fmt.Sprintf("http://localhost:8080/update/counter/%s/%d", field.Name, fieldValue.Int())
 		} else {
-			posturl = fmt.Sprintf("http://localhost:8080/update/gauge/%s/%0.f", field.Name, fieldValue)
+			posturl = fmt.Sprintf("http://localhost:8080/update/gauge/%s/%0.f", field.Name, fieldValue.Float())
 		}
 
 		// Create an HTTP post request
