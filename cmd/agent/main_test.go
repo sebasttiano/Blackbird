@@ -27,7 +27,7 @@ func TestGetMetrics(t *testing.T) {
 		mux := handlers.NewMetricHandler()
 		server := httptest.NewServer(mux)
 
-		httpClient := NewHttpClient(server.URL)
+		httpClient := NewHTTPClient(server.URL)
 		defer server.Close()
 
 		t.Run(tt.name, func(t *testing.T) {

@@ -47,17 +47,17 @@ type Metrics struct {
 	PollCount int64
 }
 
-var httpClient HttpClient
+var httpClient HTTPClient
 
 func init() {
-	httpClient = NewHttpClient("http://localhost:8080")
+	httpClient = NewHTTPClient("http://localhost:8080")
 }
 
 func main() {
 	GetMetrics(pollInterval, reportInterval, 10, httpClient)
 }
 
-func GetMetrics(pollInterval int64, reportInterval int64, stopLimit int, client HttpClient) {
+func GetMetrics(pollInterval int64, reportInterval int64, stopLimit int, client HTTPClient) {
 	var m Metrics
 	var rtm runtime.MemStats
 	var interval = time.Duration(pollInterval) * time.Second
@@ -105,7 +105,7 @@ func GetMetrics(pollInterval int64, reportInterval int64, stopLimit int, client 
 }
 
 // iterateStructFieldsAndSend prepares url with values and make post request to server
-func iterateStructFieldsAndSend(input interface{}, client HttpClient) {
+func iterateStructFieldsAndSend(input interface{}, client HTTPClient) {
 
 	var posturl string
 
@@ -125,24 +125,25 @@ func iterateStructFieldsAndSend(input interface{}, client HttpClient) {
 		}
 
 		// Make an HTTP post request
-		_, err := client.Post(posturl, bytes.NewBuffer([]byte{}), "Content-Type: text/plain")
+		res, err := client.Post(posturl, bytes.NewBuffer([]byte{}), "Content-Type: text/plain")
 		if err != nil {
 			panic(err)
 		}
+		defer res.Body.Close()
 	}
 }
 
-// HttpClient simple client
-type HttpClient struct {
+// HTTPClient simple client
+type HTTPClient struct {
 	url string
 }
 
-func NewHttpClient(url string) HttpClient {
-	return HttpClient{url: url}
+func NewHTTPClient(url string) HTTPClient {
+	return HTTPClient{url: url}
 }
 
 // Post implements http post requests
-func (c HttpClient) Post(urlSuffix string, body io.Reader, header string) (*http.Response, error) {
+func (c HTTPClient) Post(urlSuffix string, body io.Reader, header string) (*http.Response, error) {
 
 	r, err := http.NewRequest("POST", c.url+urlSuffix, body)
 	if err != nil {
@@ -154,6 +155,6 @@ func (c HttpClient) Post(urlSuffix string, body io.Reader, header string) (*http
 	}
 	client := &http.Client{}
 	res, err := client.Do(r)
-	defer res.Body.Close()
+
 	return res, err
 }
