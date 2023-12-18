@@ -1,10 +1,16 @@
 package main
 
-import "testing"
+import (
+	"github.com/sebasttiano/Blackbird.git/internal/handlers"
+	"github.com/stretchr/testify/assert"
+	"net/http/httptest"
+	"testing"
+	"time"
+)
 
 func TestGetMetrics(t *testing.T) {
 	type args struct {
-		pollInterval   int
+		pollInterval   int64
 		reportInterval int64
 	}
 	tests := []struct {
@@ -17,8 +23,18 @@ func TestGetMetrics(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+
+		mux := handlers.NewMetricHandler()
+		server := httptest.NewServer(mux)
+
+		httpClient := NewHttpClient(server.URL)
+		defer server.Close()
+
 		t.Run(tt.name, func(t *testing.T) {
-			GetMetrics(tt.args.pollInterval, tt.args.reportInterval)
+			startTime := time.Now().Unix()
+			GetMetrics(tt.args.pollInterval, tt.args.reportInterval, int(tt.args.reportInterval/tt.args.pollInterval), httpClient)
+			endTime := time.Now().Unix()
+			assert.Equal(t, reportInterval, endTime-startTime)
 		})
 	}
 }

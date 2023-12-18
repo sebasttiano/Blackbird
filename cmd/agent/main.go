@@ -3,14 +3,16 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"reflect"
 	"runtime"
+	"strings"
 	"time"
 )
 
-var pollInterval int = 2
+var pollInterval int64 = 2
 var reportInterval int64 = 10
 
 type Metrics struct {
@@ -45,18 +47,24 @@ type Metrics struct {
 	PollCount int64
 }
 
-func main() {
-	GetMetrics(pollInterval, reportInterval)
+var httpClient HttpClient
+
+func init() {
+	httpClient = NewHttpClient("http://localhost:8080")
 }
 
-func GetMetrics(pollInterval int, reportInterval int64) {
+func main() {
+	GetMetrics(pollInterval, reportInterval, 10, httpClient)
+}
+
+func GetMetrics(pollInterval int64, reportInterval int64, stopLimit int, client HttpClient) {
 	var m Metrics
 	var rtm runtime.MemStats
 	var interval = time.Duration(pollInterval) * time.Second
 	var startTime = time.Now().Unix()
 	m.PollCount = 0
 
-	for {
+	for i := 0; stopLimit > i; i++ {
 		time.Sleep(interval)
 		runtime.ReadMemStats(&rtm)
 
@@ -91,13 +99,13 @@ func GetMetrics(pollInterval int, reportInterval int64) {
 		m.RandomValue = rand.Float64()
 
 		if (startTime-time.Now().Unix())%reportInterval == 0 {
-			iterateStructFieldsAndSend(m)
+			iterateStructFieldsAndSend(m, client)
 		}
 	}
 }
 
 // iterateStructFieldsAndSend prepares url with values and make post request to server
-func iterateStructFieldsAndSend(input interface{}) {
+func iterateStructFieldsAndSend(input interface{}, client HttpClient) {
 
 	var posturl string
 
@@ -109,22 +117,43 @@ func iterateStructFieldsAndSend(input interface{}) {
 		field := structType.Field(i)
 		fieldValue := value.Field(i)
 		if field.Name == "PollCount" {
-			posturl = fmt.Sprintf("http://localhost:8080/update/counter/%s/%d", field.Name, fieldValue.Int())
+			posturl = fmt.Sprintf("/update/counter/%s/%d", field.Name, fieldValue.Int())
+
 		} else {
-			posturl = fmt.Sprintf("http://localhost:8080/update/gauge/%s/%0.f", field.Name, fieldValue.Float())
+			posturl = fmt.Sprintf("/update/gauge/%s/%0.f", field.Name, fieldValue.Float())
+
 		}
 
-		// Create an HTTP post request
-		r, err := http.NewRequest("POST", posturl, bytes.NewBuffer([]byte{}))
+		// Make an HTTP post request
+		_, err := client.Post(posturl, bytes.NewBuffer([]byte{}), "Content-Type: text/plain")
 		if err != nil {
 			panic(err)
 		}
-		r.Header.Add("Content-Type", "text/plain")
-		client := &http.Client{}
-		res, err := client.Do(r)
-		if err != nil {
-			panic(err)
-		}
-		defer res.Body.Close()
 	}
+}
+
+// HttpClient simple client
+type HttpClient struct {
+	url string
+}
+
+func NewHttpClient(url string) HttpClient {
+	return HttpClient{url: url}
+}
+
+// Post implements http post requests
+func (c HttpClient) Post(urlSuffix string, body io.Reader, header string) (*http.Response, error) {
+
+	r, err := http.NewRequest("POST", c.url+urlSuffix, body)
+	if err != nil {
+		panic(err)
+	}
+	if header != "" {
+		splitHeader := strings.Split(header, ":")
+		r.Header.Add(splitHeader[0], splitHeader[1])
+	}
+	client := &http.Client{}
+	res, err := client.Do(r)
+	defer res.Body.Close()
+	return res, err
 }
