@@ -27,7 +27,6 @@ func TestOnlyPostAllowed(t *testing.T) {
 
 			mux := http.NewServeMux()
 			mux.Handle("/", OnlyPostAllowed(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-				return
 			})))
 			mux.ServeHTTP(w, r)
 
