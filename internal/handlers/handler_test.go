@@ -17,8 +17,8 @@ func TestNewMemStorage(t *testing.T) {
 			name:    "Create New MemStorage",
 			storage: NewMemStorage(),
 			want: MemStorage{
-				gauge:   make(map[string]float64),
-				counter: map[string]int64{}},
+				Gauge:   make(map[string]float64),
+				Counter: map[string]int64{}},
 		},
 	}
 	for _, tt := range tests {

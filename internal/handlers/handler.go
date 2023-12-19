@@ -1,16 +1,80 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"html/template"
 	"io"
 	"net/http"
+	"path"
 	"strconv"
 )
 
-var localStorage MemStorage = NewMemStorage()
+var localStorage = NewMemStorage()
 
+// MemStorage Keeps Gauge and Counter
+type MemStorage struct {
+	Gauge   map[string]float64
+	Counter map[string]int64
+}
+
+// NewMemStorage — constructor of the type MemStorage.
+func NewMemStorage() MemStorage {
+	return MemStorage{
+		Gauge:   make(map[string]float64),
+		Counter: make(map[string]int64),
+	}
+}
+
+// GetValue returns either gauge or counter metrics
+func (g *MemStorage) GetValue(metricName string, metricType string) (interface{}, error) {
+	switch metricType {
+	case "gauge":
+		value, ok := g.Gauge[metricName]
+		if !ok {
+			return nil, errors.New("error: invalid Gauge metric name")
+		}
+		return value, nil
+	case "counter":
+		value, ok := g.Counter[metricName]
+		if !ok {
+			return nil, errors.New("error: invalid Counter metric name")
+		}
+		return value, nil
+	default:
+		return nil, errors.New("error: UNKNOWN METRIC TYPE. Only gauge and counter are available")
+	}
+}
+
+// SetValue saves either gauge or counter metrics
+func (g *MemStorage) SetValue(metricName string, metricType string, metricValue string) error {
+	switch metricType {
+	case "gauge":
+		valueFloat, err := strconv.ParseFloat(metricValue, 64)
+		if err != nil {
+			return err
+		}
+		g.Gauge[metricName] = valueFloat
+	case "counter":
+		valueInt, err := strconv.ParseInt(metricValue, 10, 64)
+		if err != nil {
+			return err
+		}
+		g.Counter[metricName] += valueInt
+	default:
+		return errors.New("error: UNKNOWN METRIC TYPE. Only gauge and counter are available")
+	}
+	return nil
+}
+
+type HandleMemStorage interface {
+	GetValue(metricName string, metricType string) (interface{}, error)
+	SetValue(metricName string, metricType string, metricValue string) error
+}
+
+// InitRouter provides url and method schema and returns chi.Router
 func InitRouter() chi.Router {
 	r := chi.NewRouter()
 
@@ -18,7 +82,14 @@ func InitRouter() chi.Router {
 	r.Use(middleware.RealIP)
 
 	r.Route("/", func(r chi.Router) {
-		r.Get("/", mainHandle)
+		r.Get("/", MainHandle)
+		r.Route("/value", func(r chi.Router) {
+			r.Route("/{metricType}", func(r chi.Router) {
+				r.Route("/{metricName}", func(r chi.Router) {
+					r.Get("/", GetMetric)
+				})
+			})
+		})
 		r.Route("/update", func(r chi.Router) {
 			r.Route("/{metricType}", func(r chi.Router) {
 				r.Route("/{metricName}", func(r chi.Router) {
@@ -34,28 +105,41 @@ func InitRouter() chi.Router {
 	return r
 }
 
-func mainHandle(res http.ResponseWriter, req *http.Request) {
-	fmt.Println(req.URL.Path)
+// MainHandle render html with all available metrics at the moment
+func MainHandle(res http.ResponseWriter, req *http.Request) {
+
+	fp := path.Join("templates", "index.html")
+	tmpl, err := template.ParseFiles(fp)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := tmpl.Execute(res, localStorage); err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+	}
 }
 
+// GetMetric gets metric from storage via interface method and sends in a response
+func GetMetric(res http.ResponseWriter, req *http.Request) {
+	metricType := chi.URLParam(req, "metricType")
+	metricName := chi.URLParam(req, "metricName")
+
+	value, err := localStorage.GetValue(metricName, metricType)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusNotFound)
+	}
+
+	res.WriteHeader(http.StatusOK)
+	io.WriteString(res, fmt.Sprintf("%v\n", value))
+
+}
+
+// NewMetricHandler custom handler-mux
 func NewMetricHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/update/", http.StripPrefix("/update/", OnlyPostAllowed(http.HandlerFunc(UpdateMetric))))
 	return mux
-}
-
-// MemStorage Keeps gauge and counter
-type MemStorage struct {
-	gauge   map[string]float64
-	counter map[string]int64
-}
-
-// NewMemStorage — constructor of the type MemStorage.
-func NewMemStorage() MemStorage {
-	return MemStorage{
-		gauge:   make(map[string]float64),
-		counter: make(map[string]int64),
-	}
 }
 
 // UpdateMetric handles update metrics request
@@ -64,35 +148,9 @@ func UpdateMetric(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "metricType")
 	metricName := chi.URLParam(req, "metricName")
 	metricValue := chi.URLParam(req, "metricValue")
-	fmt.Println(metricType, metricName)
 
-	switch metricType {
-	case "gauge":
-		valueFloat, err := strconv.ParseFloat(metricValue, 64)
-		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			io.WriteString(res, fmt.Sprintf("ERROR: %v\n", err))
-			return
-		}
-		localStorage.gauge[metricName] = valueFloat
-		res.Header().Set("Content-type", "text/plain")
-		res.WriteHeader(http.StatusOK)
-		io.WriteString(res, fmt.Sprintf("%0.2f\n", localStorage.gauge[metricName]))
-	case "counter":
-		valueInt, err := strconv.ParseInt(metricValue, 10, 64)
-		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			io.WriteString(res, fmt.Sprintf("ERROR: %v\n", err))
-			return
-		}
-		localStorage.counter[metricName] += valueInt
-		res.Header().Set("Content-type", "text/plain")
-		res.WriteHeader(http.StatusOK)
-		io.WriteString(res, fmt.Sprintf("%d\n", localStorage.counter[metricName]))
-	default:
+	if err := localStorage.SetValue(metricName, metricType, metricValue); err != nil {
 		res.WriteHeader(http.StatusBadRequest)
-		io.WriteString(res, "ERROR: UNKNOWN METRIC TYPE. Only gauge and counter are available\n")
-		return
+		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
-
 }
