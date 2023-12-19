@@ -13,6 +13,6 @@ func main() {
 }
 
 func run() error {
-	err := http.ListenAndServe(`localhost:8080`, handlers.NewMetricHandler())
+	err := http.ListenAndServe(`localhost:8080`, handlers.InitRouter())
 	return err
 }
