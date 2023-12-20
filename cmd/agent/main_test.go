@@ -24,8 +24,8 @@ func TestGetMetrics(t *testing.T) {
 	}
 	for _, tt := range tests {
 
-		mux := handlers.NewMetricHandler()
-		server := httptest.NewServer(mux)
+		router := handlers.InitRouter()
+		server := httptest.NewServer(router)
 
 		httpClient := NewHTTPClient(server.URL)
 		defer server.Close()
