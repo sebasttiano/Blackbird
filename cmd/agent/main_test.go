@@ -34,7 +34,7 @@ func TestGetMetrics(t *testing.T) {
 			startTime := time.Now().Unix()
 			GetMetrics(tt.args.pollInterval, tt.args.reportInterval, int(tt.args.reportInterval/tt.args.pollInterval), httpClient)
 			endTime := time.Now().Unix()
-			assert.Equal(t, reportInterval, endTime-startTime)
+			assert.Equal(t, tt.args.reportInterval, endTime-startTime)
 		})
 	}
 }

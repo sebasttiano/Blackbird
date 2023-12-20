@@ -46,14 +46,11 @@ type Metrics struct {
 
 var httpClient HTTPClient
 
-func init() {
-	parseFlags()
-	httpClient = NewHTTPClient("http://" + serverIpAddr)
-}
-
 func main() {
+	parseFlags()
+	httpClient = NewHTTPClient("http://" + serverIPAddr)
 	fmt.Printf("Running agent with poll interval %d and report interval %d\n", pollInterval, reportInterval)
-	fmt.Printf("Metric storage server address is set to %s\n", serverIpAddr)
+	fmt.Printf("Metric storage server address is set to %s\n", serverIPAddr)
 	GetMetrics(pollInterval, reportInterval, 10, httpClient)
 }
 
