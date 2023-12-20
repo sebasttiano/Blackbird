@@ -59,7 +59,8 @@ func MainHandle(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// GetMetric gets metric from storage via interface method and sends in a response
+// GetMetric gets metric from storage via interface method and sends in a
+// response
 func GetMetric(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "metricType")
 	metricName := chi.URLParam(req, "metricName")

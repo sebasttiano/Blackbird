@@ -26,7 +26,7 @@ func TestNewMemStorage(t *testing.T) {
 			assert.Equal(t, tt.want, tt.storage)
 		})
 	}
-	tests_values := []struct {
+	testsValues := []struct {
 		name        string
 		metricType  string
 		metricValue string
@@ -40,7 +40,7 @@ func TestNewMemStorage(t *testing.T) {
 
 	localStorage := NewMemStorage()
 
-	for _, tt := range tests_values {
+	for _, tt := range testsValues {
 		t.Run(tt.name, func(t *testing.T) {
 			err := localStorage.SetValue("TestMetric", tt.metricType, tt.metricValue)
 			require.NoErrorf(t, err, "error returned by SetValue method. params: type %s, value %s", tt.metricType, tt.metricValue)
