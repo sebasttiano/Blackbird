@@ -12,9 +12,6 @@ import (
 	"time"
 )
 
-var pollInterval int64 = 2
-var reportInterval int64 = 10
-
 type Metrics struct {
 	Alloc,
 	TotalAlloc,
@@ -50,10 +47,13 @@ type Metrics struct {
 var httpClient HTTPClient
 
 func init() {
-	httpClient = NewHTTPClient("http://localhost:8080")
+	parseFlags()
+	httpClient = NewHTTPClient("http://" + serverIpAddr)
 }
 
 func main() {
+	fmt.Printf("Running agent with poll interval %d and report interval %d\n", pollInterval, reportInterval)
+	fmt.Printf("Metric storage server address is set to %s\n", serverIpAddr)
 	GetMetrics(pollInterval, reportInterval, 10, httpClient)
 }
 
@@ -64,7 +64,7 @@ func GetMetrics(pollInterval int64, reportInterval int64, stopLimit int, client 
 	var startTime = time.Now().Unix()
 	m.PollCount = 0
 
-	for i := 0; stopLimit > i; i++ {
+	for i := 0; stopLimit > i; i++ { // TODO make infinite when stoplimit == 0
 		time.Sleep(interval)
 		runtime.ReadMemStats(&rtm)
 

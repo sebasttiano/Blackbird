@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"net/http"
 )
 
 func main() {
+	parseFlags()
 	if err := run(); err != nil {
 		panic(err)
 	}
@@ -13,6 +15,7 @@ func main() {
 }
 
 func run() error {
-	err := http.ListenAndServe(`localhost:8080`, handlers.InitRouter())
+	fmt.Println("Running server on", flagRunAddr)
+	err := http.ListenAndServe(flagRunAddr, handlers.InitRouter())
 	return err
 }
