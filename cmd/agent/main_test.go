@@ -14,12 +14,14 @@ func TestGetMetrics(t *testing.T) {
 		reportInterval int64
 	}
 	tests := []struct {
-		name string
-		args args
+		name             string
+		args             args
+		expectedDuration time.Duration
 	}{
 		{
-			name: "Test pollInterval",
-			args: args{pollInterval: 2, reportInterval: 10},
+			name:             "Test pollInterval",
+			args:             args{pollInterval: 2, reportInterval: 10},
+			expectedDuration: 30 * time.Second,
 		},
 	}
 	for _, tt := range tests {
@@ -31,10 +33,10 @@ func TestGetMetrics(t *testing.T) {
 		defer server.Close()
 
 		t.Run(tt.name, func(t *testing.T) {
-			startTime := time.Now().Unix()
-			GetMetrics(tt.args.pollInterval, tt.args.reportInterval, int(tt.args.reportInterval/tt.args.pollInterval), httpClient)
-			endTime := time.Now().Unix()
-			assert.Equal(t, tt.args.reportInterval, endTime-startTime)
+			startTime := time.Now()
+			GetMetrics(tt.args.pollInterval, tt.args.reportInterval, int(tt.expectedDuration.Seconds()), httpClient)
+			duration := time.Since(startTime)
+			assert.Equal(t, tt.expectedDuration, duration.Round(time.Second))
 		})
 	}
 }

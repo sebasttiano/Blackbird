@@ -16,6 +16,5 @@ func main() {
 
 func run() error {
 	fmt.Println("Running server on", flagRunAddr)
-	err := http.ListenAndServe(flagRunAddr, handlers.InitRouter())
-	return err
+	return http.ListenAndServe(flagRunAddr, handlers.InitRouter())
 }

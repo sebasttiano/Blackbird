@@ -5,16 +5,27 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sebasttiano/Blackbird.git/internal/storage"
-	"html/template"
+	"github.com/sebasttiano/Blackbird.git/templates"
 	"io"
 	"net/http"
-	"path"
 )
 
-var localStorage = storage.NewMemStorage()
+type ServerFacility struct {
+	localStorage  storage.MemStorage
+	htmlTemplates templates.HtmlTemplates
+}
+
+func NewServerFacility() ServerFacility {
+	return ServerFacility{
+		localStorage:  storage.NewMemStorage(),
+		htmlTemplates: templates.ParseTemplates()}
+}
+
+var SrvFacility = NewServerFacility()
 
 // InitRouter provides url and method schema and returns chi.Router
 func InitRouter() chi.Router {
+
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -47,14 +58,7 @@ func InitRouter() chi.Router {
 // MainHandle render html with all available metrics at the moment
 func MainHandle(res http.ResponseWriter, req *http.Request) {
 
-	fp := path.Join("templates", "index.html")
-	tmpl, err := template.ParseFiles(fp)
-	if err != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if err := tmpl.Execute(res, localStorage); err != nil {
+	if err := SrvFacility.htmlTemplates.IndexTemplate.Execute(res, SrvFacility.localStorage); err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -65,7 +69,7 @@ func GetMetric(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "metricType")
 	metricName := chi.URLParam(req, "metricName")
 
-	value, err := localStorage.GetValue(metricName, metricType)
+	value, err := SrvFacility.localStorage.GetValue(metricName, metricType)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusNotFound)
 	}
@@ -75,13 +79,6 @@ func GetMetric(res http.ResponseWriter, req *http.Request) {
 
 }
 
-// NewMetricHandler custom handler-mux
-func NewMetricHandler() http.Handler {
-	mux := http.NewServeMux()
-	mux.Handle("/update/", http.StripPrefix("/update/", OnlyPostAllowed(http.HandlerFunc(UpdateMetric))))
-	return mux
-}
-
 // UpdateMetric handles update metrics request
 func UpdateMetric(res http.ResponseWriter, req *http.Request) {
 
@@ -89,7 +86,7 @@ func UpdateMetric(res http.ResponseWriter, req *http.Request) {
 	metricName := chi.URLParam(req, "metricName")
 	metricValue := chi.URLParam(req, "metricValue")
 
-	if err := localStorage.SetValue(metricName, metricType, metricValue); err != nil {
+	if err := SrvFacility.localStorage.SetValue(metricName, metricType, metricValue); err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
