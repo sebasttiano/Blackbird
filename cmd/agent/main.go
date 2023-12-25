@@ -67,14 +67,14 @@ type MetricHandler struct {
 	metrics   Metrics
 }
 
-func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, server_addr string) MetricHandler {
+func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, serverAddr string) MetricHandler {
 	return MetricHandler{
 		getInterval:  time.Duration(pollInterval) * time.Second,
 		sendInterval: time.Duration(reportInterval) * time.Second,
 		getCounter:   time.Duration(1) * time.Second,
 		sendCounter:  time.Duration(1) * time.Second,
 		stopLimit:    stopLimit,
-		client:       NewHTTPClient(server_addr),
+		client:       NewHTTPClient(serverAddr),
 	}
 }
 
@@ -133,6 +133,7 @@ func (m *MetricHandler) GetMetrics() []*http.Response {
 		m.getCounter += 1 * time.Second
 		m.sendCounter += 1 * time.Second
 	}
+
 	return allResp
 }
 
@@ -160,8 +161,9 @@ func iterateStructFieldsAndSend(input interface{}, client HTTPClient) ([]*http.R
 		// Make an HTTP post request
 		res, err := client.Post(posturl, bytes.NewBuffer([]byte{}), "Content-Type: text/plain")
 		if err != nil {
-			return allResponse, err
+			return nil, err
 		}
+		res.Body.Close()
 		allResponse = append(allResponse, res)
 	}
 	return allResponse, nil
@@ -188,12 +190,15 @@ func (c HTTPClient) Post(urlSuffix string, body io.Reader, header string) (*http
 		if len(splitHeader) == 2 {
 			r.Header.Add(splitHeader[0], splitHeader[1])
 		} else {
-			return nil, errors.New("Check passed header,  it should be in the format '<Name>: <Value>'")
+			return nil, errors.New("error: check passed header,  it should be in the format '<Name>: <Value>'")
 		}
 
 	}
 	client := &http.Client{}
 	res, err := client.Do(r)
+	if err != nil {
+		return nil, err
+	}
 
-	return res, err
+	return res, nil
 }

@@ -32,11 +32,11 @@ func TestGetMetrics(t *testing.T) {
 	router := handlers.InitRouter()
 	server := httptest.NewServer(router)
 	defer server.Close()
-	serverUrl := server.URL
+	serverURL := server.URL
 
 	t.Run("Test running intervals", func(t *testing.T) {
 		startTime := time.Now()
-		mh := NewMetricHandler(2, 10, 30, serverUrl)
+		mh := NewMetricHandler(2, 10, 30, serverURL)
 		mh.GetMetrics()
 		duration := time.Since(startTime)
 		assert.Equal(t, time.Duration(30)*time.Second, duration.Round(time.Second))
@@ -44,7 +44,7 @@ func TestGetMetrics(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mh := NewMetricHandler(tt.args.pollInterval, tt.args.reportInterval, tt.args.stopLimit, serverUrl)
+			mh := NewMetricHandler(tt.args.pollInterval, tt.args.reportInterval, tt.args.stopLimit, serverURL)
 			responses := mh.GetMetrics()
 			for _, resp := range responses {
 				assert.Equal(t, tt.expectedReturnedConde, resp.StatusCode)

@@ -7,13 +7,13 @@ import (
 	"runtime"
 )
 
-type HtmlTemplates struct {
+type HTMLTemplates struct {
 	IndexTemplate *template.Template
 }
 
-func ParseTemplates() HtmlTemplates {
+func ParseTemplates() HTMLTemplates {
 
-	ServerTemplates := HtmlTemplates{}
+	ServerTemplates := HTMLTemplates{}
 	var err error
 	var (
 		_, b, _, _ = runtime.Caller(0)

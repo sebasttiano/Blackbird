@@ -12,7 +12,7 @@ import (
 
 type ServerFacility struct {
 	localStorage  storage.HandleMemStorage
-	htmlTemplates templates.HtmlTemplates
+	htmlTemplates templates.HTMLTemplates
 }
 
 func NewServerFacility() ServerFacility {
