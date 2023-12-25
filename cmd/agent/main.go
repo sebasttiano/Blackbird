@@ -53,7 +53,10 @@ func main() {
 	fmt.Printf("Running agent with poll interval %d and report interval %d\n", pollInterval, reportInterval)
 	fmt.Printf("Metric storage server address is set to %s\n", serverIPAddr)
 	mh := NewMetricHandler(pollInterval, reportInterval, 30, "http://"+serverIPAddr)
-	mh.GetMetrics()
+	responses := mh.GetMetrics()
+	for _, resp := range responses {
+		resp.Body.Close()
+	}
 }
 
 type MetricHandler struct {
@@ -130,8 +133,12 @@ func (m *MetricHandler) GetMetrics() []*http.Response {
 			}
 			m.sendCounter = 0 * time.Second
 		}
+
 		m.getCounter += 1 * time.Second
 		m.sendCounter += 1 * time.Second
+	}
+	for _, resp := range allResp {
+		resp.Body.Close()
 	}
 	return allResp
 }
@@ -165,6 +172,9 @@ func iterateStructFieldsAndSend(input interface{}, client HTTPClient) ([]*http.R
 		}
 		allResponse = append(allResponse, res)
 
+	}
+	for _, resp := range allResponse {
+		resp.Body.Close()
 	}
 	return allResponse, nil
 }

@@ -37,7 +37,11 @@ func TestGetMetrics(t *testing.T) {
 	t.Run("Test running intervals", func(t *testing.T) {
 		startTime := time.Now()
 		mh := NewMetricHandler(2, 10, 30, serverURL)
-		mh.GetMetrics()
+		responses := mh.GetMetrics()
+		for _, resp := range responses {
+			resp.Body.Close()
+		}
+
 		duration := time.Since(startTime)
 		assert.Equal(t, time.Duration(30)*time.Second, duration.Round(time.Second))
 	})
@@ -48,6 +52,7 @@ func TestGetMetrics(t *testing.T) {
 			responses := mh.GetMetrics()
 			for _, resp := range responses {
 				assert.Equal(t, tt.expectedReturnedConde, resp.StatusCode)
+				resp.Body.Close()
 			}
 		})
 	}
