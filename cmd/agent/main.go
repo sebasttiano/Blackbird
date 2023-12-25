@@ -196,6 +196,7 @@ func (c HTTPClient) Post(urlSuffix string, body io.Reader, header string) (*http
 	client := &http.Client{}
 	res, err := client.Do(r)
 	if err != nil {
+		res.Body.Close()
 		return nil, err
 	}
 	defer res.Body.Close()
