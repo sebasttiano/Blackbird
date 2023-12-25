@@ -3,6 +3,8 @@ package templates
 import (
 	"html/template"
 	"log"
+	"path/filepath"
+	"runtime"
 )
 
 type HtmlTemplates struct {
@@ -13,7 +15,12 @@ func ParseTemplates() HtmlTemplates {
 
 	ServerTemplates := HtmlTemplates{}
 	var err error
-	ServerTemplates.IndexTemplate, err = template.ParseFiles("templates/index.html")
+	var (
+		_, b, _, _ = runtime.Caller(0)
+		basepath   = filepath.Dir(b)
+	)
+
+	ServerTemplates.IndexTemplate, err = template.ParseFiles(basepath + "/index.html")
 	if err != nil {
 		log.Fatalf("Couldn`t parse templates %v", err)
 	}

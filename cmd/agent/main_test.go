@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/stretchr/testify/assert"
 	"net/http/httptest"
@@ -16,27 +17,28 @@ func TestGetMetrics(t *testing.T) {
 	tests := []struct {
 		name             string
 		args             args
-		expectedDuration time.Duration
+		expectedDuration int
 	}{
 		{
 			name:             "Test pollInterval",
 			args:             args{pollInterval: 2, reportInterval: 10},
-			expectedDuration: 30 * time.Second,
+			expectedDuration: 30,
 		},
 	}
+
+	router := handlers.InitRouter()
+	server := httptest.NewServer(router)
+	defer server.Close()
+
 	for _, tt := range tests {
-
-		router := handlers.InitRouter()
-		server := httptest.NewServer(router)
-
-		httpClient := NewHTTPClient(server.URL)
-		defer server.Close()
-
+		fmt.Println(server)
 		t.Run(tt.name, func(t *testing.T) {
 			startTime := time.Now()
-			GetMetrics(tt.args.pollInterval, tt.args.reportInterval, int(tt.expectedDuration.Seconds()), httpClient)
+			mh := NewMetricHandler(tt.args.pollInterval, tt.args.reportInterval, tt.expectedDuration, "http://"+serverIPAddr)
+			mh.GetMetrics()
 			duration := time.Since(startTime)
-			assert.Equal(t, tt.expectedDuration, duration.Round(time.Second))
+			assert.Equal(t, time.Duration(tt.expectedDuration)*time.Second, duration.Round(time.Second))
 		})
+
 	}
 }

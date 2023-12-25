@@ -90,4 +90,5 @@ func UpdateMetric(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusBadRequest)
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
+	res.WriteHeader(http.StatusOK)
 }

@@ -50,70 +50,86 @@ var httpClient HTTPClient
 
 func main() {
 	parseFlags()
-	httpClient = NewHTTPClient("http://" + serverIPAddr)
 	fmt.Printf("Running agent with poll interval %d and report interval %d\n", pollInterval, reportInterval)
 	fmt.Printf("Metric storage server address is set to %s\n", serverIPAddr)
-	GetMetrics(pollInterval, reportInterval, 30, httpClient)
+	mh := NewMetricHandler(pollInterval, reportInterval, 30, "http://"+serverIPAddr)
+	mh.GetMetrics()
 }
 
-func GetMetrics(pollInterval int64, reportInterval int64, stopLimit int, client HTTPClient) {
-	var m Metrics
-	var rtm runtime.MemStats
-	var getInterval = time.Duration(pollInterval) * time.Second
-	var sendInterval = time.Duration(reportInterval) * time.Second
-	var getCounter = time.Duration(1) * time.Second
-	var sendCounter = time.Duration(1) * time.Second
+type MetricHandler struct {
+	getInterval,
+	sendInterval,
+	getCounter,
+	sendCounter time.Duration
+	stopLimit int
+	client    HTTPClient
+	rtm       runtime.MemStats
+	metrics   Metrics
+}
 
-	m.PollCount = 0
+func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, server_addr string) MetricHandler {
+	return MetricHandler{
+		getInterval:  time.Duration(pollInterval) * time.Second,
+		sendInterval: time.Duration(reportInterval) * time.Second,
+		getCounter:   time.Duration(1) * time.Second,
+		sendCounter:  time.Duration(1) * time.Second,
+		stopLimit:    stopLimit,
+		client:       NewHTTPClient(server_addr),
+	}
+}
 
-	for i := 0; stopLimit > i; i++ { // TODO make infinite when stoplimit == 0
+func (m *MetricHandler) GetMetrics() {
+
+	m.metrics.PollCount = 0
+
+	for i := 0; m.stopLimit > i; i++ { // TODO make infinite when stoplimit == 0
 
 		time.Sleep(1 * time.Second)
 
-		if getCounter == getInterval {
-			runtime.ReadMemStats(&rtm)
+		if m.getCounter == m.getInterval {
+			runtime.ReadMemStats(&m.rtm)
 
-			m.Alloc = float64(rtm.Alloc)
-			m.TotalAlloc = float64(rtm.TotalAlloc)
-			m.BuckHashSys = float64(rtm.BuckHashSys)
-			m.Frees = float64(rtm.Frees)
-			m.GCCPUFraction = rtm.GCCPUFraction
-			m.GCSys = float64(rtm.GCSys)
-			m.HeapAlloc = float64(rtm.HeapAlloc)
-			m.HeapIdle = float64(rtm.HeapIdle)
-			m.HeapInuse = float64(rtm.HeapInuse)
-			m.HeapObjects = float64(rtm.HeapObjects)
-			m.HeapReleased = float64(rtm.HeapReleased)
-			m.HeapSys = float64(rtm.HeapSys)
-			m.LastGC = float64(rtm.LastGC)
-			m.Lookups = float64(rtm.Lookups)
-			m.MCacheInuse = float64(rtm.MCacheInuse)
-			m.MCacheSys = float64(rtm.MCacheSys)
-			m.MSpanInuse = float64(rtm.MSpanInuse)
-			m.MSpanSys = float64(rtm.MSpanSys)
-			m.Mallocs = float64(rtm.Mallocs)
-			m.NextGC = float64(rtm.NextGC)
-			m.NumForcedGC = float64(rtm.NumForcedGC)
-			m.NumGC = float64(rtm.NumGC)
-			m.OtherSys = float64(rtm.OtherSys)
-			m.PauseTotalNs = float64(rtm.PauseTotalNs)
-			m.StackInuse = float64(rtm.StackInuse)
-			m.StackSys = float64(rtm.StackSys)
-			m.Sys = float64(rtm.Sys)
-			m.PollCount += 1
-			m.RandomValue = rand.Float64()
+			m.metrics.Alloc = float64(m.rtm.Alloc)
+			m.metrics.TotalAlloc = float64(m.rtm.TotalAlloc)
+			m.metrics.BuckHashSys = float64(m.rtm.BuckHashSys)
+			m.metrics.Frees = float64(m.rtm.Frees)
+			m.metrics.GCCPUFraction = m.rtm.GCCPUFraction
+			m.metrics.GCSys = float64(m.rtm.GCSys)
+			m.metrics.HeapAlloc = float64(m.rtm.HeapAlloc)
+			m.metrics.HeapIdle = float64(m.rtm.HeapIdle)
+			m.metrics.HeapInuse = float64(m.rtm.HeapInuse)
+			m.metrics.HeapObjects = float64(m.rtm.HeapObjects)
+			m.metrics.HeapReleased = float64(m.rtm.HeapReleased)
+			m.metrics.HeapSys = float64(m.rtm.HeapSys)
+			m.metrics.LastGC = float64(m.rtm.LastGC)
+			m.metrics.Lookups = float64(m.rtm.Lookups)
+			m.metrics.MCacheInuse = float64(m.rtm.MCacheInuse)
+			m.metrics.MCacheSys = float64(m.rtm.MCacheSys)
+			m.metrics.MSpanInuse = float64(m.rtm.MSpanInuse)
+			m.metrics.MSpanSys = float64(m.rtm.MSpanSys)
+			m.metrics.Mallocs = float64(m.rtm.Mallocs)
+			m.metrics.NextGC = float64(m.rtm.NextGC)
+			m.metrics.NumForcedGC = float64(m.rtm.NumForcedGC)
+			m.metrics.NumGC = float64(m.rtm.NumGC)
+			m.metrics.OtherSys = float64(m.rtm.OtherSys)
+			m.metrics.PauseTotalNs = float64(m.rtm.PauseTotalNs)
+			m.metrics.StackInuse = float64(m.rtm.StackInuse)
+			m.metrics.StackSys = float64(m.rtm.StackSys)
+			m.metrics.Sys = float64(m.rtm.Sys)
+			m.metrics.PollCount += 1
+			m.metrics.RandomValue = rand.Float64()
 
-			getCounter = 0 * time.Second
+			m.getCounter = 0 * time.Second
 		}
 
-		if sendCounter == sendInterval {
-			if err := iterateStructFieldsAndSend(m, client); err != nil {
+		if m.sendCounter == m.sendInterval {
+			if err := iterateStructFieldsAndSend(m.metrics, m.client); err != nil {
 				log.Printf("error occured while sending metrics. message: %s", err)
 			}
-			sendCounter = 0 * time.Second
+			m.sendCounter = 0 * time.Second
 		}
-		getCounter += 1 * time.Second
-		sendCounter += 1 * time.Second
+		m.getCounter += 1 * time.Second
+		m.sendCounter += 1 * time.Second
 	}
 }
 
