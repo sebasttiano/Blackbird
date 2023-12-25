@@ -130,6 +130,7 @@ func (m *MetricHandler) GetMetrics() []*http.Response {
 			}
 			m.sendCounter = 0 * time.Second
 		}
+
 		m.getCounter += 1 * time.Second
 		m.sendCounter += 1 * time.Second
 	}
