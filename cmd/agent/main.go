@@ -162,7 +162,6 @@ func iterateStructFieldsAndSend(input interface{}, client HTTPClient) ([]*http.R
 		if err != nil {
 			return allResponse, err
 		}
-		defer res.Body.Close()
 		allResponse = append(allResponse, res)
 
 	}
@@ -196,6 +195,10 @@ func (c HTTPClient) Post(urlSuffix string, body io.Reader, header string) (*http
 	}
 	client := &http.Client{}
 	res, err := client.Do(r)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
 
 	return res, err
 }
