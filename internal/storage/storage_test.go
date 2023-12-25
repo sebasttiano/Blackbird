@@ -38,7 +38,10 @@ func TestNewMemStorage(t *testing.T) {
 		{name: "Check counter value #2", metricType: "counter", metricValue: "15", want: "25"},
 	}
 
-	localStorage := NewMemStorage()
+	var localStorage HandleMemStorage = &MemStorage{
+		Gauge:   make(map[string]float64),
+		Counter: make(map[string]int64),
+	}
 
 	for _, tt := range testsValues {
 		t.Run(tt.name, func(t *testing.T) {

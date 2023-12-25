@@ -11,13 +11,16 @@ import (
 )
 
 type ServerFacility struct {
-	localStorage  storage.MemStorage
+	localStorage  storage.HandleMemStorage
 	htmlTemplates templates.HtmlTemplates
 }
 
 func NewServerFacility() ServerFacility {
 	return ServerFacility{
-		localStorage:  storage.NewMemStorage(),
+		localStorage: &storage.MemStorage{
+			Gauge:   make(map[string]float64),
+			Counter: make(map[string]int64),
+		},
 		htmlTemplates: templates.ParseTemplates()}
 }
 

@@ -78,8 +78,10 @@ func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, server_
 	}
 }
 
-func (m *MetricHandler) GetMetrics() {
+func (m *MetricHandler) GetMetrics() []*http.Response {
 
+	var allResp []*http.Response
+	var err error
 	m.metrics.PollCount = 0
 
 	for i := 0; m.stopLimit > i; i++ { // TODO make infinite when stoplimit == 0
@@ -123,7 +125,7 @@ func (m *MetricHandler) GetMetrics() {
 		}
 
 		if m.sendCounter == m.sendInterval {
-			if err := iterateStructFieldsAndSend(m.metrics, m.client); err != nil {
+			if allResp, err = iterateStructFieldsAndSend(m.metrics, m.client); err != nil {
 				log.Printf("error occured while sending metrics. message: %s", err)
 			}
 			m.sendCounter = 0 * time.Second
@@ -131,12 +133,14 @@ func (m *MetricHandler) GetMetrics() {
 		m.getCounter += 1 * time.Second
 		m.sendCounter += 1 * time.Second
 	}
+	return allResp
 }
 
 // iterateStructFieldsAndSend prepares url with values and make post request to server
-func iterateStructFieldsAndSend(input interface{}, client HTTPClient) error {
+func iterateStructFieldsAndSend(input interface{}, client HTTPClient) ([]*http.Response, error) {
 
 	var posturl string
+	var allResponse []*http.Response
 
 	value := reflect.ValueOf(input)
 	numFields := value.NumField()
@@ -154,12 +158,13 @@ func iterateStructFieldsAndSend(input interface{}, client HTTPClient) error {
 		}
 
 		// Make an HTTP post request
-		_, err := client.Post(posturl, bytes.NewBuffer([]byte{}), "Content-Type: text/plain")
+		res, err := client.Post(posturl, bytes.NewBuffer([]byte{}), "Content-Type: text/plain")
 		if err != nil {
-			return err
+			return allResponse, err
 		}
+		allResponse = append(allResponse, res)
 	}
-	return nil
+	return allResponse, nil
 }
 
 // HTTPClient simple client
