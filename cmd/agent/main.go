@@ -159,6 +159,7 @@ func iterateStructFieldsAndSend(input interface{}, client HTTPClient) ([]*http.R
 
 		// Make an HTTP post request
 		res, err := client.Post(posturl, bytes.NewBuffer([]byte{}), "Content-Type: text/plain")
+		res.Body.Close()
 		if err != nil {
 			return allResponse, err
 		}
