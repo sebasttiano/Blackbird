@@ -11,6 +11,29 @@ import (
 
 func TestGetMetrics(t *testing.T) {
 
+	router := handlers.InitRouter()
+	server := httptest.NewServer(router)
+	defer server.Close()
+	serverURL := server.URL
+
+	t.Run("Test running intervals", func(t *testing.T) {
+		startTime := time.Now()
+		mh := NewMetricHandler(1, 5, 15, serverURL)
+		err := mh.GetMetrics()
+		require.NoError(t, err)
+		duration := time.Since(startTime)
+		assert.Equal(t, time.Duration(15)*time.Second, duration.Round(time.Second))
+	})
+}
+
+func TestIterateStructFieldsAndSend(t *testing.T) {
+
+	router := handlers.InitRouter()
+	server := httptest.NewServer(router)
+	defer server.Close()
+	serverURL := server.URL
+	client := NewHTTPClient(serverURL)
+
 	tests := []struct {
 		name           string
 		notExpectedMsg string
@@ -27,22 +50,6 @@ func TestGetMetrics(t *testing.T) {
 			testMetric:     Metrics{HeapIdle: 3.35872, NumForcedGC: 0, BuckHashSys: 9600},
 		},
 	}
-
-	router := handlers.InitRouter()
-	server := httptest.NewServer(router)
-	defer server.Close()
-	serverURL := server.URL
-	client := NewHTTPClient(serverURL)
-
-	t.Run("Test running intervals", func(t *testing.T) {
-		startTime := time.Now()
-		mh := NewMetricHandler(1, 5, 15, serverURL)
-		err := mh.GetMetrics()
-		require.NoError(t, err)
-		duration := time.Since(startTime)
-		assert.Equal(t, time.Duration(15)*time.Second, duration.Round(time.Second))
-	})
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := IterateStructFieldsAndSend(tt.testMetric, client); err != nil {
