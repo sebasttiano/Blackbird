@@ -35,7 +35,7 @@ func (g *MemStorage) GetValue(metricName string, metricType string) (interface{}
 		}
 		return value, nil
 	default:
-		return nil, errors.New("error: UNKNOWN METRIC TYPE. Only gauge and counter are available")
+		return nil, errors.New("error: unknown metric type. only gauge and counter are available")
 	}
 }
 
