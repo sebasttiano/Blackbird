@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/stretchr/testify/assert"
-	"net/http"
+	"github.com/stretchr/testify/require"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -11,21 +11,20 @@ import (
 
 func TestGetMetrics(t *testing.T) {
 
-	serverIPAddr = "localhost:8080"
-	type args struct {
-		pollInterval   int64
-		reportInterval int64
-		stopLimit      int
-	}
 	tests := []struct {
-		name                  string
-		args                  args
-		expectedReturnedConde int
+		name           string
+		notExpectedMsg string
+		testMetric     Metrics
 	}{
 		{
-			name:                  "Test OK return code for all metrics",
-			args:                  args{pollInterval: 1, reportInterval: 2, stopLimit: 2},
-			expectedReturnedConde: http.StatusOK,
+			name:           "Test OK return code for all metrics",
+			notExpectedMsg: "server return code",
+			testMetric:     Metrics{Alloc: 134408, Mallocs: 312, MCacheInuse: 9600},
+		},
+		{
+			name:           "Test nice server parsing",
+			notExpectedMsg: "invalid syntax",
+			testMetric:     Metrics{HeapIdle: 3.35872, NumForcedGC: 0, BuckHashSys: 9600},
 		},
 	}
 
@@ -33,23 +32,23 @@ func TestGetMetrics(t *testing.T) {
 	server := httptest.NewServer(router)
 	defer server.Close()
 	serverURL := server.URL
+	client := NewHTTPClient(serverURL)
 
 	t.Run("Test running intervals", func(t *testing.T) {
 		startTime := time.Now()
-		mh := NewMetricHandler(2, 10, 30, serverURL)
-		mh.GetMetrics()
+		mh := NewMetricHandler(1, 5, 15, serverURL)
+		err := mh.GetMetrics()
+		require.NoError(t, err)
 		duration := time.Since(startTime)
-		assert.Equal(t, time.Duration(30)*time.Second, duration.Round(time.Second))
+		assert.Equal(t, time.Duration(15)*time.Second, duration.Round(time.Second))
 	})
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mh := NewMetricHandler(tt.args.pollInterval, tt.args.reportInterval, tt.args.stopLimit, serverURL)
-			responses := mh.GetMetrics()
-			for _, resp := range responses {
-				assert.Equal(t, tt.expectedReturnedConde, resp.StatusCode)
+			if err := IterateStructFieldsAndSend(tt.testMetric, client); err != nil {
+				assert.NotContainsf(t, err.Error(), tt.notExpectedMsg, "not expected error occured")
 			}
+
 		})
 	}
-
 }

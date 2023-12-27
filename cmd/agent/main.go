@@ -46,14 +46,14 @@ type Metrics struct {
 	PollCount int64
 }
 
-var httpClient HTTPClient
-
 func main() {
 	parseFlags()
 	fmt.Printf("Running agent with poll interval %d and report interval %d\n", pollInterval, reportInterval)
 	fmt.Printf("Metric storage server address is set to %s\n", serverIPAddr)
 	mh := NewMetricHandler(pollInterval, reportInterval, 30, "http://"+serverIPAddr)
-	mh.GetMetrics()
+	if err := mh.GetMetrics(); err != nil {
+		log.Println("error in getmetrics occured")
+	}
 }
 
 type MetricHandler struct {
@@ -78,9 +78,8 @@ func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, serverA
 	}
 }
 
-func (m *MetricHandler) GetMetrics() []*http.Response {
+func (m *MetricHandler) GetMetrics() error {
 
-	var allResp []*http.Response
 	var err error
 	m.metrics.PollCount = 0
 
@@ -125,8 +124,8 @@ func (m *MetricHandler) GetMetrics() []*http.Response {
 		}
 
 		if m.sendCounter == m.sendInterval {
-			if allResp, err = iterateStructFieldsAndSend(m.metrics, m.client); err != nil {
-				log.Printf("error occured while sending metrics. message: %s", err)
+			if err = IterateStructFieldsAndSend(m.metrics, m.client); err != nil {
+				return err
 			}
 			m.sendCounter = 0 * time.Second
 		}
@@ -134,15 +133,13 @@ func (m *MetricHandler) GetMetrics() []*http.Response {
 		m.getCounter += 1 * time.Second
 		m.sendCounter += 1 * time.Second
 	}
-
-	return allResp
+	return nil
 }
 
-// iterateStructFieldsAndSend prepares url with values and make post request to server
-func iterateStructFieldsAndSend(input interface{}, client HTTPClient) ([]*http.Response, error) {
+// IterateStructFieldsAndSend prepares url with values and make post request to server
+func IterateStructFieldsAndSend(input interface{}, client HTTPClient) error {
 
 	var posturl string
-	var allResponse []*http.Response
 
 	value := reflect.ValueOf(input)
 	numFields := value.NumField()
@@ -162,12 +159,15 @@ func iterateStructFieldsAndSend(input interface{}, client HTTPClient) ([]*http.R
 		// Make an HTTP post request
 		res, err := client.Post(posturl, bytes.NewBuffer([]byte{}), "Content-Type: text/plain")
 		if err != nil {
-			return nil, err
+			return err
 		}
 		res.Body.Close()
-		allResponse = append(allResponse, res)
+
+		if res.StatusCode != 200 {
+			return fmt.Errorf("error: server return code %d, while sending metric %s", res.StatusCode, field.Name)
+		}
 	}
-	return allResponse, nil
+	return nil
 }
 
 // HTTPClient simple client
