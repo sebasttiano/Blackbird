@@ -6,7 +6,11 @@ import (
 )
 
 // non-export var flagRunAddr keeps ip address and port to run server on
-var flagRunAddr string
+// flagLogLevel keeps level of the logger
+var (
+	flagRunAddr  string
+	flagLogLevel string
+)
 
 // parseFlags handles args of cli
 func parseFlags() {
@@ -15,5 +19,9 @@ func parseFlags() {
 
 	if envRunAddr := os.Getenv("ADDRESS"); envRunAddr != "" {
 		flagRunAddr = envRunAddr
+	}
+
+	if envLogLevel := os.Getenv("LOG_LEVEL"); envLogLevel != "" {
+		flagLogLevel = envLogLevel
 	}
 }

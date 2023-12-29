@@ -1,8 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
+	"go.uber.org/zap"
 	"net/http"
 )
 
@@ -15,6 +16,10 @@ func main() {
 }
 
 func run() error {
-	fmt.Println("Running server on", flagRunAddr)
-	return http.ListenAndServe(flagRunAddr, handlers.InitRouter())
+	if err := logger.Initialize(flagLogLevel); err != nil {
+		return err
+	}
+	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
+
+	return http.ListenAndServe(flagRunAddr, handlers.WithLogging(handlers.InitRouter()))
 }
