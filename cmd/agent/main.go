@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-type Metrics struct {
+type MetricsSet struct {
 	Alloc,
 	TotalAlloc,
 	BuckHashSys,
@@ -64,7 +64,7 @@ type MetricHandler struct {
 	stopLimit int
 	client    HTTPClient
 	rtm       runtime.MemStats
-	metrics   Metrics
+	metrics   MetricsSet
 }
 
 func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, serverAddr string) MetricHandler {

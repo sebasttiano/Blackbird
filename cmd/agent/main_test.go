@@ -37,17 +37,17 @@ func TestIterateStructFieldsAndSend(t *testing.T) {
 	tests := []struct {
 		name           string
 		notExpectedMsg string
-		testMetric     Metrics
+		testMetric     MetricsSet
 	}{
 		{
 			name:           "Test OK return code for all metrics",
 			notExpectedMsg: "server return code",
-			testMetric:     Metrics{Alloc: 134408, Mallocs: 312, MCacheInuse: 9600},
+			testMetric:     MetricsSet{Alloc: 134408, Mallocs: 312, MCacheInuse: 9600},
 		},
 		{
 			name:           "Test nice server parsing",
 			notExpectedMsg: "invalid syntax",
-			testMetric:     Metrics{HeapIdle: 3.35872, NumForcedGC: 0, BuckHashSys: 9600},
+			testMetric:     MetricsSet{HeapIdle: 3.35872, NumForcedGC: 0, BuckHashSys: 9600},
 		},
 	}
 	for _, tt := range tests {

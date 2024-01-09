@@ -2,7 +2,7 @@ package storage
 
 import (
 	"errors"
-	"strconv"
+	"github.com/sebasttiano/Blackbird.git/internal/models"
 )
 
 // MemStorage Keeps Gauge and Counter metrics
@@ -40,27 +40,32 @@ func (g *MemStorage) GetValue(metricName string, metricType string) (interface{}
 }
 
 // SetValue saves either gauge or counter metrics
-func (g *MemStorage) SetValue(metricName string, metricType string, metricValue string) error {
-	switch metricType {
+func (g *MemStorage) SetValue(metric models.Metrics) error {
+
+	if metric.ID == "" {
+		return errors.New("name of the metric is required")
+	}
+
+	switch metric.MType {
 	case "gauge":
-		valueFloat, err := strconv.ParseFloat(metricValue, 64)
-		if err != nil {
-			return err
+		if metric.Value == nil {
+			return errors.New("value of the gauge is required")
 		}
-		g.Gauge[metricName] = valueFloat
+
+		g.Gauge[metric.ID] = *metric.Value
 	case "counter":
-		valueInt, err := strconv.ParseInt(metricValue, 10, 64)
-		if err != nil {
-			return err
+
+		if metric.Delta == nil {
+			return errors.New("value of the gauge is required")
 		}
-		g.Counter[metricName] += valueInt
+		g.Counter[metric.ID] += *metric.Delta
 	default:
-		return errors.New("error: UNKNOWN METRIC TYPE. Only gauge and counter are available")
+		return errors.New("error: unknown metric type. Only gauge and counter are available")
 	}
 	return nil
 }
 
 type HandleMemStorage interface {
 	GetValue(metricName string, metricType string) (interface{}, error)
-	SetValue(metricName string, metricType string, metricValue string) error
+	SetValue(metric models.Metrics) error
 }

@@ -1,11 +1,15 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
+	"github.com/sebasttiano/Blackbird.git/internal/models"
 	"github.com/sebasttiano/Blackbird.git/internal/storage"
 	"github.com/sebasttiano/Blackbird.git/templates"
+	"go.uber.org/zap"
 	"io"
 	"net/http"
 )
@@ -43,15 +47,7 @@ func InitRouter() chi.Router {
 			})
 		})
 		r.Route("/update", func(r chi.Router) {
-			r.Route("/{metricType}", func(r chi.Router) {
-				r.Route("/{metricName}", func(r chi.Router) {
-					r.Route("/{metricValue}", func(r chi.Router) {
-						r.Post("/", UpdateMetric)
-
-					})
-				})
-
-			})
+			r.Post("/", UpdateMetric)
 		})
 	})
 	return r
@@ -84,11 +80,21 @@ func GetMetric(res http.ResponseWriter, req *http.Request) {
 // UpdateMetric handles update metrics request
 func UpdateMetric(res http.ResponseWriter, req *http.Request) {
 
-	metricType := chi.URLParam(req, "metricType")
-	metricName := chi.URLParam(req, "metricName")
-	metricValue := chi.URLParam(req, "metricValue")
-
-	if err := SrvFacility.localStorage.SetValue(metricName, metricType, metricValue); err != nil {
+	if req.Header.Get("Content-Type") != "application/json" {
+		logger.Log.Error("got request with wrong header", zap.String("Content-Type", req.Header.Get("Content-Type")))
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	logger.Log.Debug("decoding incoming request")
+	var metrics models.Metrics
+	dec := json.NewDecoder(req.Body)
+	if err := dec.Decode(&metrics); err != nil {
+		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	fmt.Println(metrics)
+	if err := SrvFacility.localStorage.SetValue(metrics); err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
