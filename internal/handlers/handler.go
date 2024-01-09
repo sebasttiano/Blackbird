@@ -40,6 +40,7 @@ func InitRouter() chi.Router {
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", MainHandle)
 		r.Route("/value", func(r chi.Router) {
+			r.Post("/", GetMetricJSON)
 			r.Route("/{metricType}", func(r chi.Router) {
 				r.Route("/{metricName}", func(r chi.Router) {
 					r.Get("/", GetMetric)
@@ -47,7 +48,12 @@ func InitRouter() chi.Router {
 			})
 		})
 		r.Route("/update", func(r chi.Router) {
-			r.Post("/", UpdateMetric)
+			r.Post("/", UpdateMetricJSON)
+			r.Route("/{metricType}", func(r chi.Router) {
+				r.Route("/metricName", func(r chi.Router) {
+					r.Post("/", UpdateMetric)
+				})
+			})
 		})
 	})
 	return r
@@ -77,14 +83,15 @@ func GetMetric(res http.ResponseWriter, req *http.Request) {
 
 }
 
-// UpdateMetric handles update metrics request
-func UpdateMetric(res http.ResponseWriter, req *http.Request) {
-
+// GetMetricJSON gets metric from storage via interface method and sends in a model
+// response
+func GetMetricJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Type") != "application/json" {
 		logger.Log.Error("got request with wrong header", zap.String("Content-Type", req.Header.Get("Content-Type")))
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
 	logger.Log.Debug("decoding incoming request")
 	var metrics models.Metrics
 	dec := json.NewDecoder(req.Body)
@@ -93,10 +100,66 @@ func UpdateMetric(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	fmt.Println(metrics)
-	if err := SrvFacility.localStorage.SetValue(metrics); err != nil {
-		res.WriteHeader(http.StatusBadRequest)
+	if err := SrvFacility.localStorage.GetModelValue(&metrics); err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	res.WriteHeader(http.StatusOK)
+	res.Header().Set("Content-Type", "application/json")
+
+	enc := json.NewEncoder(res)
+	if err := enc.Encode(metrics); err != nil {
+		logger.Log.Debug("error encoding response", zap.Error(err))
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+// UpdateMetric handles update metrics request
+func UpdateMetric(res http.ResponseWriter, req *http.Request) {
+
+	metricType := chi.URLParam(req, "metricType")
+	metricName := chi.URLParam(req, "metricName")
+	metricValue := chi.URLParam(req, "metricValue")
+
+	if err := SrvFacility.localStorage.SetValue(metricName, metricType, metricValue); err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
 	}
 	res.WriteHeader(http.StatusOK)
+}
+
+// UpdateMetricJSON handles update metrics request in json format
+func UpdateMetricJSON(res http.ResponseWriter, req *http.Request) {
+
+	if req.Header.Get("Content-Type") != "application/json" {
+		logger.Log.Error("got request with wrong header", zap.String("Content-Type", req.Header.Get("Content-Type")))
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	logger.Log.Debug("decoding incoming request")
+	var metrics models.Metrics
+	dec := json.NewDecoder(req.Body)
+	if err := dec.Decode(&metrics); err != nil {
+		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := SrvFacility.localStorage.SetModelValue(&metrics); err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	res.WriteHeader(http.StatusOK)
+	res.Header().Set("Content-Type", "application/json")
+
+	enc := json.NewEncoder(res)
+	if err := enc.Encode(metrics); err != nil {
+		logger.Log.Debug("error encoding response", zap.Error(err))
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
