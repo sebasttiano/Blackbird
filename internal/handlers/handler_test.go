@@ -18,7 +18,6 @@ func TestUpdateMetric(t *testing.T) {
 		url          string
 	}{
 		{name: "Check POST /", url: "/", method: http.MethodPost, expectedCode: http.StatusMethodNotAllowed, expectedBody: ""},
-		{name: "Check /update/", url: "/update/", method: http.MethodPost, expectedCode: http.StatusNotFound, expectedBody: ""},
 		{name: "Check /update/counter/", url: "/update/counter", method: http.MethodPost, expectedCode: http.StatusNotFound, expectedBody: ""},
 		{name: "Check /update/gauge", url: "/update/gauge", method: http.MethodPost, expectedCode: http.StatusNotFound, expectedBody: ""},
 		{name: "Pass gauge metric #1", url: "/update/gauge/TestMetric/333.3453", method: http.MethodPost, expectedCode: http.StatusOK, expectedBody: ""},

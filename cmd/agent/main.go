@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sebasttiano/Blackbird.git/internal/models"
 	"io"
 	"log"
 	"math/rand"
@@ -139,8 +141,6 @@ func (m *MetricHandler) GetMetrics() error {
 // IterateStructFieldsAndSend prepares url with values and make post request to server
 func IterateStructFieldsAndSend(input interface{}, client HTTPClient) error {
 
-	var posturl string
-
 	value := reflect.ValueOf(input)
 	numFields := value.NumField()
 	structType := value.Type()
@@ -148,16 +148,26 @@ func IterateStructFieldsAndSend(input interface{}, client HTTPClient) error {
 	for i := 0; i < numFields; i++ {
 		field := structType.Field(i)
 		fieldValue := value.Field(i)
+		var metrics models.Metrics
+		metrics.ID = field.Name
+
 		if fieldValue.CanInt() {
-			posturl = fmt.Sprintf("/update/counter/%s/%d", field.Name, fieldValue.Int())
+			counterVal := fieldValue.Int()
+			metrics.Delta = &counterVal
+			metrics.MType = "counter"
 
 		} else {
-			posturl = fmt.Sprintf("/update/gauge/%s/%0.f", field.Name, fieldValue.Float())
-
+			gaugeVal := fieldValue.Float()
+			metrics.Value = &gaugeVal
+			metrics.MType = "gauge"
 		}
 
 		// Make an HTTP post request
-		res, err := client.Post(posturl, bytes.NewBuffer([]byte{}), "Content-Type: text/plain")
+		reqBody, err := json.Marshal(metrics)
+		if err != nil {
+			return err
+		}
+		res, err := client.Post("/update/", bytes.NewBuffer(reqBody), "Content-Type: application/json")
 		if err != nil {
 			return err
 		}
