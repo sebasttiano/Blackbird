@@ -83,10 +83,11 @@ func TestGzipMiddleware(t *testing.T) {
 			r.Header.Set("Accept-Encoding", "gzip")
 
 			resp, err := http.DefaultClient.Do(r)
-
 			status := resp.StatusCode
 			assert.Equal(t, tt.expectedCode, status, "Код ответа не совпадает с ожидаемым")
 			require.NoError(t, err)
+			defer resp.Body.Close()
+
 			_, err = io.ReadAll(resp.Body)
 			require.NoError(t, err)
 
