@@ -23,8 +23,10 @@ func run() error {
 	}
 	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
 
-	ticker := time.NewTicker(time.Second * 5)
-	go common.Schedule(ticker)
+	if flagStoreInterval > 0 && flagFileStoragePath != "" {
+		ticker := time.NewTicker(time.Second * time.Duration(flagStoreInterval))
+		go common.Schedule(ticker, flagFileStoragePath)
+	}
 
 	return http.ListenAndServe(flagRunAddr, handlers.WithLogging(handlers.GzipMiddleware(handlers.InitRouter())))
 }

@@ -1,9 +1,12 @@
 package storage
 
 import (
+	"encoding/json"
 	"errors"
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
 	"github.com/sebasttiano/Blackbird.git/templates"
+	"os"
 	"strconv"
 )
 
@@ -20,8 +23,16 @@ type MemStorage struct {
 }
 
 // NewMemStorage — constructor of the type MemStorage.
-func NewMemStorage() MemStorage {
-	return MemStorage{
+func NewMemStorage() *MemStorage {
+	if true {
+		logger.Log.Debug("restore metrics from file")
+		mem := MemStorage{}
+		if err := mem.RestoreFromFile("files/store.json"); err != nil {
+			logger.Log.Error("couldn`t restore data from file")
+		}
+		return &mem
+	}
+	return &MemStorage{
 		Gauge:   make(map[string]float64),
 		Counter: make(map[string]int64),
 	}
@@ -122,11 +133,32 @@ func (g *MemStorage) SetModelValue(metric *models.Metrics) error {
 	return nil
 }
 
+func (g *MemStorage) SaveToFile(file string) error {
+	data, err := json.MarshalIndent(g, "", "   ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(file, data, 0666)
+}
+
+func (g *MemStorage) RestoreFromFile(file string) error {
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, g); err != nil {
+		return err
+	}
+	return nil
+}
+
 type HandleMemStorage interface {
 	GetValue(metricName string, metricType string) (interface{}, error)
 	GetModelValue(metrics *models.Metrics) error
 	SetValue(metricName string, metricType string, metricValue string) error
 	SetModelValue(metric *models.Metrics) error
+	SaveToFile(file string) error
+	RestoreFromFile(file string) error
 }
 
 type ServerFacility struct {
@@ -136,9 +168,6 @@ type ServerFacility struct {
 
 func NewServerFacility() ServerFacility {
 	return ServerFacility{
-		LocalStorage: &MemStorage{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64),
-		},
+		LocalStorage:  NewMemStorage(),
 		HtmlTemplates: templates.ParseTemplates()}
 }
