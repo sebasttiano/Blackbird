@@ -8,27 +8,12 @@ import (
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
 	"github.com/sebasttiano/Blackbird.git/internal/storage"
-	"github.com/sebasttiano/Blackbird.git/templates"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
 )
 
-type ServerFacility struct {
-	localStorage  storage.HandleMemStorage
-	htmlTemplates templates.HTMLTemplates
-}
-
-func NewServerFacility() ServerFacility {
-	return ServerFacility{
-		localStorage: &storage.MemStorage{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64),
-		},
-		htmlTemplates: templates.ParseTemplates()}
-}
-
-var SrvFacility = NewServerFacility()
+var serverFacility = storage.GetCurrentStorage()
 
 // InitRouter provides url and method schema and returns chi.Router
 func InitRouter() chi.Router {
@@ -65,7 +50,7 @@ func InitRouter() chi.Router {
 func MainHandle(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "text/html")
-	if err := SrvFacility.htmlTemplates.IndexTemplate.Execute(res, SrvFacility.localStorage); err != nil {
+	if err := storage.SrvFacility.HtmlTemplates.IndexTemplate.Execute(res, storage.SrvFacility.LocalStorage); err != nil {
 		logger.Log.Error("couldn`t render the html template", zap.Error(err))
 		res.WriteHeader(http.StatusInternalServerError)
 	}
@@ -77,7 +62,7 @@ func GetMetric(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "metricType")
 	metricName := chi.URLParam(req, "metricName")
 
-	value, err := SrvFacility.localStorage.GetValue(metricName, metricType)
+	value, err := storage.SrvFacility.LocalStorage.GetValue(metricName, metricType)
 	if err != nil {
 		logger.Log.Error("couldn`t find requested metric. ", zap.Error(err))
 		res.WriteHeader(http.StatusNotFound)
@@ -106,7 +91,7 @@ func GetMetricJSON(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	if err := SrvFacility.localStorage.GetModelValue(&metrics); err != nil {
+	if err := storage.SrvFacility.LocalStorage.GetModelValue(&metrics); err != nil {
 		logger.Log.Debug("couldn`t get model", zap.Error(err))
 		res.WriteHeader(http.StatusNotFound)
 		io.WriteString(res, err.Error()+"\n")
@@ -129,7 +114,7 @@ func UpdateMetric(res http.ResponseWriter, req *http.Request) {
 	metricName := chi.URLParam(req, "metricName")
 	metricValue := chi.URLParam(req, "metricValue")
 
-	if err := SrvFacility.localStorage.SetValue(metricName, metricType, metricValue); err != nil {
+	if err := storage.SrvFacility.LocalStorage.SetValue(metricName, metricType, metricValue); err != nil {
 		logger.Log.Error("couldn`t save metric. error: ", zap.Error(err))
 		res.WriteHeader(http.StatusBadRequest)
 		return
@@ -157,7 +142,7 @@ func UpdateMetricJSON(res http.ResponseWriter, req *http.Request) {
 		io.WriteString(res, err.Error()+"\n")
 		return
 	}
-	if err := SrvFacility.localStorage.SetModelValue(&metrics); err != nil {
+	if err := storage.SrvFacility.LocalStorage.SetModelValue(&metrics); err != nil {
 		logger.Log.Debug("couldn`t save metric. error: ", zap.Error(err))
 		res.WriteHeader(http.StatusBadRequest)
 		io.WriteString(res, err.Error()+"\n")

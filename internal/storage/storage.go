@@ -3,8 +3,15 @@ package storage
 import (
 	"errors"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
+	"github.com/sebasttiano/Blackbird.git/templates"
 	"strconv"
 )
+
+var SrvFacility = NewServerFacility()
+
+func GetCurrentStorage() *HandleMemStorage {
+	return &SrvFacility.LocalStorage
+}
 
 // MemStorage Keeps Gauge and Counter metrics
 type MemStorage struct {
@@ -120,4 +127,18 @@ type HandleMemStorage interface {
 	GetModelValue(metrics *models.Metrics) error
 	SetValue(metricName string, metricType string, metricValue string) error
 	SetModelValue(metric *models.Metrics) error
+}
+
+type ServerFacility struct {
+	LocalStorage  HandleMemStorage
+	HtmlTemplates templates.HTMLTemplates
+}
+
+func NewServerFacility() ServerFacility {
+	return ServerFacility{
+		LocalStorage: &MemStorage{
+			Gauge:   make(map[string]float64),
+			Counter: make(map[string]int64),
+		},
+		HtmlTemplates: templates.ParseTemplates()}
 }
