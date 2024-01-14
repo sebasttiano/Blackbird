@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
+	"go.uber.org/zap"
 	"io"
-	"log"
 	"math/rand"
 	"net/http"
 	"reflect"
@@ -52,9 +53,9 @@ func main() {
 	parseFlags()
 	fmt.Printf("Running agent with poll interval %d and report interval %d\n", pollInterval, reportInterval)
 	fmt.Printf("Metric storage server address is set to %s\n", serverIPAddr)
-	mh := NewMetricHandler(pollInterval, reportInterval, 30, "http://"+serverIPAddr)
+	mh := NewMetricHandler(pollInterval, reportInterval, 600, "http://"+serverIPAddr)
 	if err := mh.GetMetrics(); err != nil {
-		log.Println("error in getmetrics occured")
+		logger.Log.Error("error in getmetrics occured", zap.Error(err))
 	}
 }
 
@@ -127,6 +128,7 @@ func (m *MetricHandler) GetMetrics() error {
 
 		if m.sendCounter == m.sendInterval {
 			if err = IterateStructFieldsAndSend(m.metrics, m.client); err != nil {
+				logger.Log.Error("failed to send metrics to server. error:", zap.Error(err))
 				return err
 			}
 			m.sendCounter = 0 * time.Second
@@ -165,16 +167,18 @@ func IterateStructFieldsAndSend(input interface{}, client HTTPClient) error {
 		// Make an HTTP post request
 		reqBody, err := json.Marshal(metrics)
 		if err != nil {
+			logger.Log.Error("couldn`t serialize to json", zap.Error(err))
 			return err
 		}
 		res, err := client.Post("/update/", bytes.NewBuffer(reqBody), "Content-Type: application/json")
 		if err != nil {
+			logger.Log.Error("couldn`t send metrics", zap.Error(err))
 			return err
 		}
 		res.Body.Close()
 
 		if res.StatusCode != 200 {
-			return fmt.Errorf("error: server return code %d, while sending metric %s", res.StatusCode, field.Name)
+			return errors.New(fmt.Sprintf("error: server return code %d, while sending metric %s", res.StatusCode, field.Name))
 		}
 	}
 	return nil
@@ -194,6 +198,7 @@ func (c HTTPClient) Post(urlSuffix string, body io.Reader, header string) (*http
 
 	r, err := http.NewRequest("POST", c.url+urlSuffix, body)
 	if err != nil {
+		logger.Log.Debug("failed to make http request", zap.Error(err))
 		return nil, err
 	}
 	if header != "" {
