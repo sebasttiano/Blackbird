@@ -178,7 +178,7 @@ func IterateStructFieldsAndSend(input interface{}, client HTTPClient) error {
 		res.Body.Close()
 
 		if res.StatusCode != 200 {
-			return errors.New(fmt.Sprintf("error: server return code %d, while sending metric %s", res.StatusCode, field.Name))
+			return fmt.Errorf("error: server return code %d, while sending metric %s", res.StatusCode, field.Name)
 		}
 	}
 	return nil
