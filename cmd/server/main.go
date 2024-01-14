@@ -21,5 +21,5 @@ func run() error {
 	}
 	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
 
-	return http.ListenAndServe(flagRunAddr, handlers.WithLogging(handlers.InitRouter()))
+	return http.ListenAndServe(flagRunAddr, handlers.WithLogging(handlers.GzipMiddleware(handlers.InitRouter())))
 }

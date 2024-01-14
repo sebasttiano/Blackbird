@@ -11,7 +11,7 @@ import (
 
 func TestGetMetrics(t *testing.T) {
 
-	router := handlers.InitRouter()
+	router := handlers.GzipMiddleware(handlers.InitRouter())
 	server := httptest.NewServer(router)
 	defer server.Close()
 	serverURL := server.URL
@@ -28,7 +28,7 @@ func TestGetMetrics(t *testing.T) {
 
 func TestIterateStructFieldsAndSend(t *testing.T) {
 
-	router := handlers.InitRouter()
+	router := handlers.GzipMiddleware(handlers.InitRouter())
 	server := httptest.NewServer(router)
 	defer server.Close()
 	serverURL := server.URL

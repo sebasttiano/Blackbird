@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -51,12 +52,23 @@ type MetricsSet struct {
 
 func main() {
 	parseFlags()
-	fmt.Printf("Running agent with poll interval %d and report interval %d\n", pollInterval, reportInterval)
-	fmt.Printf("Metric storage server address is set to %s\n", serverIPAddr)
+	if err := run(); err != nil {
+		panic(err)
+	}
+}
+
+func run() error {
+
+	if err := logger.Initialize(flagLogLevel); err != nil {
+		return err
+	}
+	logger.Log.Info(fmt.Sprintf("Running agent with poll interval %d and report interval %d\n", pollInterval, reportInterval))
+	logger.Log.Info(fmt.Sprintf("Metric storage server address is set to %s\n", serverIPAddr))
 	mh := NewMetricHandler(pollInterval, reportInterval, 600, "http://"+serverIPAddr)
 	if err := mh.GetMetrics(); err != nil {
 		logger.Log.Error("error in getmetrics occured", zap.Error(err))
 	}
+	return nil
 }
 
 type MetricHandler struct {
@@ -170,7 +182,13 @@ func IterateStructFieldsAndSend(input interface{}, client HTTPClient) error {
 			logger.Log.Error("couldn`t serialize to json", zap.Error(err))
 			return err
 		}
-		res, err := client.Post("/update/", bytes.NewBuffer(reqBody), "Content-Type: application/json")
+
+		compressedData, err := Compress(reqBody)
+		if err != nil {
+			logger.Log.Error("failed to compress data to gzip", zap.Error(err))
+		}
+
+		res, err := client.Post("/update/", compressedData, []string{"Content-Type: application/json", "Content-Encoding: gzip"})
 		if err != nil {
 			logger.Log.Error("couldn`t send metrics", zap.Error(err))
 			return err
@@ -194,21 +212,22 @@ func NewHTTPClient(url string) HTTPClient {
 }
 
 // Post implements http post requests
-func (c HTTPClient) Post(urlSuffix string, body io.Reader, header string) (*http.Response, error) {
+func (c HTTPClient) Post(urlSuffix string, body io.Reader, headers []string) (*http.Response, error) {
 
 	r, err := http.NewRequest("POST", c.url+urlSuffix, body)
 	if err != nil {
 		logger.Log.Debug("failed to make http request", zap.Error(err))
 		return nil, err
 	}
-	if header != "" {
-		splitHeader := strings.Split(header, ":")
-		if len(splitHeader) == 2 {
-			r.Header.Add(splitHeader[0], splitHeader[1])
-		} else {
-			return nil, errors.New("error: check passed header,  it should be in the format '<Name>: <Value>'")
+	for _, header := range headers {
+		if header != "" {
+			splitHeader := strings.Split(header, ":")
+			if len(splitHeader) == 2 {
+				r.Header.Add(splitHeader[0], splitHeader[1])
+			} else {
+				return nil, errors.New("error: check passed header,  it should be in the format '<Name>: <Value>'")
+			}
 		}
-
 	}
 	client := &http.Client{}
 	res, err := client.Do(r)
@@ -217,4 +236,38 @@ func (c HTTPClient) Post(urlSuffix string, body io.Reader, header string) (*http
 	}
 
 	return res, nil
+}
+
+// Compress сжимает слайс байт.
+func Compress(data []byte) (*bytes.Buffer, error) {
+	var b bytes.Buffer
+	w := gzip.NewWriter(&b)
+
+	_, err := w.Write(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed write data to compress temporary buffer: %v", err)
+	}
+
+	err = w.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed compress data: %v", err)
+	}
+	return &b, nil
+}
+
+// Decompress распаковывает слайс байт.
+func Decompress(data []byte) ([]byte, error) {
+	r, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		logger.Log.Error("failed to init gzip reader")
+	}
+	defer r.Close()
+
+	var b bytes.Buffer
+	_, err = b.ReadFrom(r)
+	if err != nil {
+		return nil, fmt.Errorf("failed decompress data: %v", err)
+	}
+
+	return b.Bytes(), nil
 }

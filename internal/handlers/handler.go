@@ -64,8 +64,10 @@ func InitRouter() chi.Router {
 // MainHandle render html with all available metrics at the moment
 func MainHandle(res http.ResponseWriter, req *http.Request) {
 
+	res.Header().Set("Content-Type", "text/html")
 	if err := SrvFacility.htmlTemplates.IndexTemplate.Execute(res, SrvFacility.localStorage); err != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
+		logger.Log.Error("couldn`t render the html template", zap.Error(err))
+		res.WriteHeader(http.StatusInternalServerError)
 	}
 }
 
@@ -77,12 +79,11 @@ func GetMetric(res http.ResponseWriter, req *http.Request) {
 
 	value, err := SrvFacility.localStorage.GetValue(metricName, metricType)
 	if err != nil {
-		http.Error(res, err.Error(), http.StatusNotFound)
+		logger.Log.Error("couldn`t find requested metric. ", zap.Error(err))
+		res.WriteHeader(http.StatusNotFound)
 	}
-
 	res.WriteHeader(http.StatusOK)
 	io.WriteString(res, fmt.Sprintf("%v\n", value))
-
 }
 
 // GetMetricJSON gets metric from storage via interface method and sends in a model
@@ -119,7 +120,6 @@ func GetMetricJSON(res http.ResponseWriter, req *http.Request) {
 		io.WriteString(res, err.Error()+"\n")
 		return
 	}
-	res.WriteHeader(http.StatusOK)
 }
 
 // UpdateMetric handles update metrics request
@@ -130,10 +130,10 @@ func UpdateMetric(res http.ResponseWriter, req *http.Request) {
 	metricValue := chi.URLParam(req, "metricValue")
 
 	if err := SrvFacility.localStorage.SetValue(metricName, metricType, metricValue); err != nil {
-		http.Error(res, err.Error(), http.StatusBadRequest)
+		logger.Log.Error("couldn`t save metric. error: ", zap.Error(err))
+		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	res.WriteHeader(http.StatusOK)
 }
 
 // UpdateMetricJSON handles update metrics request in json format
