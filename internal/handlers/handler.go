@@ -171,5 +171,4 @@ func UpdateMetricJSON(res http.ResponseWriter, req *http.Request) {
 		io.WriteString(res, err.Error()+"\n")
 		return
 	}
-	res.WriteHeader(http.StatusOK)
 }
