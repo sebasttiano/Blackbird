@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,7 +33,7 @@ func TestIterateStructFieldsAndSend(t *testing.T) {
 	server := httptest.NewServer(router)
 	defer server.Close()
 	serverURL := server.URL
-	client := NewHTTPClient(serverURL)
+	client := common.NewHTTPClient(serverURL)
 
 	tests := []struct {
 		name           string

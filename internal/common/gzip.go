@@ -1,7 +1,10 @@
-package compress
+package common
 
 import (
+	"bytes"
 	"compress/gzip"
+	"fmt"
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"io"
 	"net/http"
 	"slices"
@@ -80,4 +83,38 @@ func (c *GZIPReader) Close() error {
 		return err
 	}
 	return c.zr.Close()
+}
+
+// Compress сжимает слайс байт.
+func Compress(data []byte) (*bytes.Buffer, error) {
+	var b bytes.Buffer
+	w := gzip.NewWriter(&b)
+
+	_, err := w.Write(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed write data to compress temporary buffer: %v", err)
+	}
+
+	err = w.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed compress data: %v", err)
+	}
+	return &b, nil
+}
+
+// Decompress распаковывает слайс байт.
+func Decompress(data []byte) ([]byte, error) {
+	r, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		logger.Log.Error("failed to init gzip reader")
+	}
+	defer r.Close()
+
+	var b bytes.Buffer
+	_, err = b.ReadFrom(r)
+	if err != nil {
+		return nil, fmt.Errorf("failed decompress data: %v", err)
+	}
+
+	return b.Bytes(), nil
 }

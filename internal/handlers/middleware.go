@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/sebasttiano/Blackbird.git/internal/compress"
+	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"net/http"
 	"strings"
@@ -86,7 +86,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
 		if supportsGzip {
-			cw := compress.NewGZIPWriter(w)
+			cw := common.NewGZIPWriter(w)
 			ow = cw
 			defer cw.Close()
 		}
@@ -94,7 +94,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		contentEncoding := r.Header.Get("Content-Encoding")
 		sendsGzip := strings.Contains(contentEncoding, "gzip")
 		if sendsGzip {
-			cr, err := compress.NewZIPReader(r.Body)
+			cr, err := common.NewZIPReader(r.Body)
 			if err != nil {
 				logger.Log.Error("couldn`t decompress request")
 				w.WriteHeader(http.StatusInternalServerError)

@@ -1,20 +1,15 @@
 package main
 
 import (
-	"bytes"
-	"compress/gzip"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
 	"go.uber.org/zap"
-	"io"
 	"math/rand"
-	"net/http"
 	"reflect"
 	"runtime"
-	"strings"
 	"time"
 )
 
@@ -77,7 +72,7 @@ type MetricHandler struct {
 	getCounter,
 	sendCounter time.Duration
 	stopLimit int
-	client    HTTPClient
+	client    common.HTTPClient
 	rtm       runtime.MemStats
 	metrics   MetricsSet
 }
@@ -89,7 +84,7 @@ func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, serverA
 		getCounter:   time.Duration(1) * time.Second,
 		sendCounter:  time.Duration(1) * time.Second,
 		stopLimit:    stopLimit,
-		client:       NewHTTPClient(serverAddr),
+		client:       common.NewHTTPClient(serverAddr),
 	}
 }
 
@@ -153,7 +148,7 @@ func (m *MetricHandler) GetMetrics() error {
 }
 
 // IterateStructFieldsAndSend prepares url with values and make post request to server
-func IterateStructFieldsAndSend(input interface{}, client HTTPClient) error {
+func IterateStructFieldsAndSend(input interface{}, client common.HTTPClient) error {
 
 	value := reflect.ValueOf(input)
 	numFields := value.NumField()
@@ -183,7 +178,7 @@ func IterateStructFieldsAndSend(input interface{}, client HTTPClient) error {
 			return err
 		}
 
-		compressedData, err := Compress(reqBody)
+		compressedData, err := common.Compress(reqBody)
 		if err != nil {
 			logger.Log.Error("failed to compress data to gzip", zap.Error(err))
 		}
@@ -200,74 +195,4 @@ func IterateStructFieldsAndSend(input interface{}, client HTTPClient) error {
 		}
 	}
 	return nil
-}
-
-// HTTPClient simple client
-type HTTPClient struct {
-	url string
-}
-
-func NewHTTPClient(url string) HTTPClient {
-	return HTTPClient{url: url}
-}
-
-// Post implements http post requests
-func (c HTTPClient) Post(urlSuffix string, body io.Reader, headers []string) (*http.Response, error) {
-
-	r, err := http.NewRequest("POST", c.url+urlSuffix, body)
-	if err != nil {
-		logger.Log.Debug("failed to make http request", zap.Error(err))
-		return nil, err
-	}
-	for _, header := range headers {
-		if header != "" {
-			splitHeader := strings.Split(header, ":")
-			if len(splitHeader) == 2 {
-				r.Header.Add(splitHeader[0], splitHeader[1])
-			} else {
-				return nil, errors.New("error: check passed header,  it should be in the format '<Name>: <Value>'")
-			}
-		}
-	}
-	client := &http.Client{}
-	res, err := client.Do(r)
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
-}
-
-// Compress сжимает слайс байт.
-func Compress(data []byte) (*bytes.Buffer, error) {
-	var b bytes.Buffer
-	w := gzip.NewWriter(&b)
-
-	_, err := w.Write(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed write data to compress temporary buffer: %v", err)
-	}
-
-	err = w.Close()
-	if err != nil {
-		return nil, fmt.Errorf("failed compress data: %v", err)
-	}
-	return &b, nil
-}
-
-// Decompress распаковывает слайс байт.
-func Decompress(data []byte) ([]byte, error) {
-	r, err := gzip.NewReader(bytes.NewReader(data))
-	if err != nil {
-		logger.Log.Error("failed to init gzip reader")
-	}
-	defer r.Close()
-
-	var b bytes.Buffer
-	_, err = b.ReadFrom(r)
-	if err != nil {
-		return nil, fmt.Errorf("failed decompress data: %v", err)
-	}
-
-	return b.Bytes(), nil
 }
