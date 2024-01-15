@@ -40,8 +40,8 @@ func (c HTTPClient) Post(urlSuffix string, body io.Reader, headers []string) (*h
 	}
 	client := &http.Client{}
 
-	var retryIn int = 3
-	var retries int = 3
+	var retryIn = 3
+	var retries = 3
 	var res *http.Response
 
 	for retries > 0 {
