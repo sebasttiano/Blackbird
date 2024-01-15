@@ -2,11 +2,13 @@ package common
 
 import (
 	"errors"
+	"fmt"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // HTTPClient simple client
@@ -37,10 +39,24 @@ func (c HTTPClient) Post(urlSuffix string, body io.Reader, headers []string) (*h
 		}
 	}
 	client := &http.Client{}
-	res, err := client.Do(r)
+
+	var retryIn int = 3
+	var retries int = 3
+	var res *http.Response
+
+	for retries > 0 {
+		res, err = client.Do(r)
+		if err != nil {
+			retries -= 1
+			logger.Log.Error(fmt.Sprintf("couldn`t send to server. retrying in %d seconds... Retries left %d\n", retryIn, retries))
+			time.Sleep(time.Duration(retryIn) * time.Second)
+		} else {
+			break
+		}
+	}
+
 	if err != nil {
 		return nil, err
 	}
-
 	return res, nil
 }

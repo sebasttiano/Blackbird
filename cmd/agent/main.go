@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"reflect"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -48,7 +49,7 @@ type MetricsSet struct {
 func main() {
 	parseFlags()
 	if err := run(); err != nil {
-		panic(err)
+		logger.Log.Error("While executing agent, error occurred", zap.Error(err))
 	}
 }
 
@@ -90,7 +91,6 @@ func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, serverA
 
 func (m *MetricHandler) GetMetrics() error {
 
-	var err error
 	m.metrics.PollCount = 0
 
 	for i := 0; m.stopLimit > i; i++ { // TODO make infinite when stoplimit == 0
@@ -134,7 +134,7 @@ func (m *MetricHandler) GetMetrics() error {
 		}
 
 		if m.sendCounter == m.sendInterval {
-			if err = IterateStructFieldsAndSend(m.metrics, m.client); err != nil {
+			if err := IterateStructFieldsAndSend(m.metrics, m.client); err != nil {
 				logger.Log.Error("failed to send metrics to server. error:", zap.Error(err))
 				return err
 			}
@@ -186,7 +186,11 @@ func IterateStructFieldsAndSend(input interface{}, client common.HTTPClient) err
 		res, err := client.Post("/update/", compressedData, []string{"Content-Type: application/json", "Content-Encoding: gzip"})
 		if err != nil {
 			logger.Log.Error("couldn`t send metrics", zap.Error(err))
-			return err
+			if strings.Contains(err.Error(), "connect: connection refused") {
+				continue
+			} else {
+				return err
+			}
 		}
 		res.Body.Close()
 

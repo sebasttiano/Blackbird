@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
@@ -52,7 +51,6 @@ func run() error {
 		settings.SyncSave = true
 		settings.SaveFilePath = flagFileStoragePath
 	}
-	fmt.Println(flagRestoreOnStart)
 	if flagRestoreOnStart && flagFileStoragePath != "" {
 		if err := localStorage.RestoreFromFile(flagFileStoragePath); err != nil {
 			logger.Log.Error("couldn`t restore data from file")
