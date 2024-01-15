@@ -48,7 +48,7 @@ func (c HTTPClient) Post(urlSuffix string, body io.Reader, headers []string) (*h
 		res, err = client.Do(r)
 		if err != nil {
 			retries -= 1
-			logger.Log.Error(fmt.Sprintf("couldn`t send to server. retrying in %d seconds... Retries left %d\n", retryIn, retries))
+			logger.Log.Error(fmt.Sprintf("Request to server failed. retrying in %d seconds... Retries left %d\n", retryIn, retries))
 			time.Sleep(time.Duration(retryIn) * time.Second)
 		} else {
 			break

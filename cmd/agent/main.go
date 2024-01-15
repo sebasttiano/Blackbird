@@ -136,7 +136,7 @@ func (m *MetricHandler) GetMetrics() error {
 		if m.sendCounter == m.sendInterval {
 			if err := IterateStructFieldsAndSend(m.metrics, m.client); err != nil {
 				logger.Log.Error("failed to send metrics to server. error:", zap.Error(err))
-				return err
+				continue
 			}
 			m.sendCounter = 0 * time.Second
 		}
@@ -185,7 +185,7 @@ func IterateStructFieldsAndSend(input interface{}, client common.HTTPClient) err
 
 		res, err := client.Post("/update/", compressedData, []string{"Content-Type: application/json", "Content-Encoding: gzip"})
 		if err != nil {
-			logger.Log.Error("couldn`t send metrics", zap.Error(err))
+			logger.Log.Error(fmt.Sprintf("couldn`t send metrics %s", field.Name), zap.Error(err))
 			if strings.Contains(err.Error(), "connect: connection refused") {
 				continue
 			} else {

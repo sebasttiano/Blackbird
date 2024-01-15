@@ -67,7 +67,6 @@ func GetMetric(res http.ResponseWriter, req *http.Request) {
 		logger.Log.Error("couldn`t find requested metric. ", zap.Error(err))
 		res.WriteHeader(http.StatusNotFound)
 	}
-	res.WriteHeader(http.StatusOK)
 	io.WriteString(res, fmt.Sprintf("%v\n", value))
 }
 
