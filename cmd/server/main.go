@@ -1,21 +1,34 @@
 package main
 
 import (
+	"fmt"
 	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/storage"
 	"go.uber.org/zap"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
 func main() {
-	parseFlags()
-	if err := run(); err != nil {
-		panic(err)
-	}
 
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	parseFlags()
+	go run()
+
+	<-done
+	logger.Log.Debug("Shutdown signal interrupted")
+	if flagFileStoragePath != "" {
+		localStorage := *storage.GetCurrentStorage()
+		if err := localStorage.SaveToFile(flagFileStoragePath); err != nil {
+			logger.Log.Error("couldn`t finally save file after graceful shutdown", zap.Error(err))
+		}
+	}
 }
 
 func run() error {
@@ -39,6 +52,7 @@ func run() error {
 		settings.SyncSave = true
 		settings.SaveFilePath = flagFileStoragePath
 	}
+	fmt.Println(flagRestoreOnStart)
 	if flagRestoreOnStart && flagFileStoragePath != "" {
 		if err := localStorage.RestoreFromFile(flagFileStoragePath); err != nil {
 			logger.Log.Error("couldn`t restore data from file")
