@@ -6,6 +6,7 @@ import (
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
 	"github.com/sebasttiano/Blackbird.git/templates"
+	"go.uber.org/zap"
 	"os"
 	"strconv"
 )
@@ -16,6 +17,10 @@ func GetCurrentStorage() *HandleMemStorage {
 	return &SrvFacility.LocalStorage
 }
 
+func GetCurrentServerSettings() *ServerSettings {
+	return &SrvFacility.Settings
+}
+
 // MemStorage Keeps Gauge and Counter metrics
 type MemStorage struct {
 	Gauge   map[string]float64
@@ -24,14 +29,6 @@ type MemStorage struct {
 
 // NewMemStorage — constructor of the type MemStorage.
 func NewMemStorage() *MemStorage {
-	if true {
-		logger.Log.Debug("restore metrics from file")
-		mem := MemStorage{}
-		if err := mem.RestoreFromFile("files/store.json"); err != nil {
-			logger.Log.Error("couldn`t restore data from file")
-		}
-		return &mem
-	}
 	return &MemStorage{
 		Gauge:   make(map[string]float64),
 		Counter: make(map[string]int64),
@@ -103,6 +100,13 @@ func (g *MemStorage) SetValue(metricName string, metricType string, metricValue 
 	default:
 		return errors.New("error: unknown metric type. Only gauge and counter are available")
 	}
+
+	if SrvFacility.Settings.SyncSave {
+		if err := SrvFacility.LocalStorage.SaveToFile(SrvFacility.Settings.SaveFilePath); err != nil {
+			logger.Log.Error("couldn`t save to the file", zap.Error(err))
+			return err
+		}
+	}
 	return nil
 }
 
@@ -129,6 +133,13 @@ func (g *MemStorage) SetModelValue(metric *models.Metrics) error {
 		*metric.Delta = g.Counter[metric.ID]
 	default:
 		return errors.New("error: unknown metric type. Only gauge and counter are available")
+	}
+
+	if SrvFacility.Settings.SyncSave {
+		if err := SrvFacility.LocalStorage.SaveToFile(SrvFacility.Settings.SaveFilePath); err != nil {
+			logger.Log.Error("couldn`t save to the file", zap.Error(err))
+			return err
+		}
 	}
 	return nil
 }
@@ -163,11 +174,23 @@ type HandleMemStorage interface {
 
 type ServerFacility struct {
 	LocalStorage  HandleMemStorage
-	HtmlTemplates templates.HTMLTemplates
+	HTMLTemplates templates.HTMLTemplates
+	Settings      ServerSettings
 }
 
 func NewServerFacility() ServerFacility {
 	return ServerFacility{
 		LocalStorage:  NewMemStorage(),
-		HtmlTemplates: templates.ParseTemplates()}
+		HTMLTemplates: templates.ParseTemplates(),
+		Settings: ServerSettings{
+			SyncSave:   false,
+			SaveToFile: true,
+		},
+	}
+}
+
+type ServerSettings struct {
+	SyncSave     bool
+	SaveToFile   bool
+	SaveFilePath string
 }

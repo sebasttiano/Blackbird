@@ -50,7 +50,7 @@ func InitRouter() chi.Router {
 func MainHandle(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "text/html")
-	if err := storage.SrvFacility.HtmlTemplates.IndexTemplate.Execute(res, storage.SrvFacility.LocalStorage); err != nil {
+	if err := storage.SrvFacility.HTMLTemplates.IndexTemplate.Execute(res, storage.SrvFacility.LocalStorage); err != nil {
 		logger.Log.Error("couldn`t render the html template", zap.Error(err))
 		res.WriteHeader(http.StatusInternalServerError)
 	}
