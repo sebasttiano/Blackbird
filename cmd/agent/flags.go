@@ -7,10 +7,12 @@ import (
 )
 
 var (
-	serverIPAddr   string
-	flagLogLevel   string
-	pollInterval   int64
-	reportInterval int64
+	serverIPAddr           string
+	flagLogLevel           string
+	pollInterval           int64
+	reportInterval         int64
+	httpClientRetry        = 3
+	httpClientRetryTimeout = 3
 )
 
 // parseFlags handles args of cli

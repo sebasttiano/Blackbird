@@ -33,7 +33,7 @@ func TestIterateStructFieldsAndSend(t *testing.T) {
 	server := httptest.NewServer(router)
 	defer server.Close()
 	serverURL := server.URL
-	client := common.NewHTTPClient(serverURL)
+	client := common.NewHTTPClient(serverURL, 3, 3)
 
 	tests := []struct {
 		name           string

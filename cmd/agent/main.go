@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
@@ -10,7 +11,6 @@ import (
 	"math/rand"
 	"reflect"
 	"runtime"
-	"strings"
 	"time"
 )
 
@@ -85,7 +85,7 @@ func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, serverA
 		getCounter:   time.Duration(1) * time.Second,
 		sendCounter:  time.Duration(1) * time.Second,
 		stopLimit:    stopLimit,
-		client:       common.NewHTTPClient(serverAddr),
+		client:       common.NewHTTPClient(serverAddr, httpClientRetryTimeout, httpClientRetry),
 	}
 }
 
@@ -183,10 +183,11 @@ func IterateStructFieldsAndSend(input interface{}, client common.HTTPClient) err
 			logger.Log.Error("failed to compress data to gzip", zap.Error(err))
 		}
 
-		res, err := client.Post("/update/", compressedData, []string{"Content-Type: application/json", "Content-Encoding: gzip"})
+		res, err := client.Post("/update/", compressedData, map[string]string{"Content-Type": "application/json", "Content-Encoding": "gzip"})
+
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("couldn`t send metrics %s", field.Name), zap.Error(err))
-			if strings.Contains(err.Error(), "connect: connection refused") {
+			if errors.Is(err, client.ClientErrors.ErrConnect) {
 				continue
 			} else {
 				return err
