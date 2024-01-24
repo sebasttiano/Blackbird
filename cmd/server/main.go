@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/storage"
@@ -23,7 +22,7 @@ func main() {
 	<-done
 	logger.Log.Debug("Shutdown signal interrupted")
 	if flagFileStoragePath != "" {
-		localStorage := *storage.GetCurrentStorage()
+		localStorage := storage.SrvFacility.LocalStorage
 		if err := localStorage.SaveToFile(flagFileStoragePath); err != nil {
 			logger.Log.Error("couldn`t finally save file after graceful shutdown", zap.Error(err))
 		}
@@ -36,12 +35,12 @@ func run() error {
 	}
 	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
 
-	localStorage := *storage.GetCurrentStorage()
+	localStorage := storage.SrvFacility.LocalStorage
 	settings := storage.GetCurrentServerSettings()
 
 	if flagStoreInterval > 0 && flagFileStoragePath != "" {
 		ticker := time.NewTicker(time.Second * time.Duration(flagStoreInterval))
-		go common.Schedule(ticker, flagFileStoragePath)
+		go storage.TickerSaver(ticker, flagFileStoragePath)
 	}
 
 	if flagFileStoragePath == "" {

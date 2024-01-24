@@ -13,10 +13,6 @@ import (
 
 var SrvFacility = NewServerFacility()
 
-func GetCurrentStorage() *HandleMemStorage {
-	return &SrvFacility.LocalStorage
-}
-
 func GetCurrentServerSettings() *ServerSettings {
 	return &SrvFacility.Settings
 }

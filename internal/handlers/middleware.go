@@ -3,6 +3,7 @@ package handlers
 import (
 	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
+	"go.uber.org/zap"
 	"net/http"
 	"strings"
 	"time"
@@ -41,11 +42,11 @@ func WithLogging(next http.Handler) http.Handler {
 		duration := time.Since(start)
 		sugar := logger.Log.Sugar()
 		sugar.Infoln(
-			"uri", req.RequestURI,
-			"method", req.Method,
-			"status", responseData.status,
-			"duration", duration,
-			"size", responseData.size,
+			zap.String("uri", req.RequestURI),
+			zap.String("method", req.Method),
+			zap.Int("status", responseData.status),
+			zap.Duration("duration", duration),
+			zap.Int("size", responseData.size),
 		)
 
 	}
