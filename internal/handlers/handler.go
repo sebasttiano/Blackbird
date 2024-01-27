@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi/v5"
@@ -12,6 +13,7 @@ import (
 	"go.uber.org/zap"
 	"io"
 	"net/http"
+	"time"
 )
 
 // InitRouter provides url and method schema and returns chi.Router
@@ -24,6 +26,7 @@ func InitRouter() chi.Router {
 
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", v.MainHandle)
+		r.Get("/ping", v.PingDB)
 		r.Route("/value", func(r chi.Router) {
 			r.Post("/", v.GetMetricJSON)
 			r.Route("/{metricType}", func(r chi.Router) {
@@ -146,6 +149,15 @@ func (s *ServerViews) UpdateMetricJSON(res http.ResponseWriter, req *http.Reques
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(metrics); err != nil {
 		logger.Log.Debug("error encoding response", zap.Error(err))
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// PingDB checks connection to database
+func (s *ServerViews) PingDB(res http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	if err := storage.DB.PingContext(ctx); err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 }

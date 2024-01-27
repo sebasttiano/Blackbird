@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"os"
@@ -15,14 +16,16 @@ var (
 	flagFileStoragePath string
 	flagStoreInterval   int
 	flagRestoreOnStart  bool
+	flagDatabaseDSN     string
 )
 
 // parseFlags handles args of cli
-func parseFlags() {
+func parseFlags() error {
 	flag.StringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
 	flag.IntVar(&flagStoreInterval, "i", 300, "set interval in seconds to write metrics in file")
 	flag.StringVar(&flagFileStoragePath, "f", "/tmp/metrics-db.json", "")
 	flag.BoolVar(&flagRestoreOnStart, "r", true, "Restore saved metrics on start")
+	flag.StringVar(&flagDatabaseDSN, "d", "", "database host connect to, user and password")
 
 	flag.Parse()
 
@@ -53,4 +56,13 @@ func parseFlags() {
 			logger.Log.Error("you must pass bool value to env var restore")
 		}
 	}
+
+	if envDatabaseDSN := os.Getenv("DATABASE_DSN"); envDatabaseDSN != "" {
+		flagDatabaseDSN = envDatabaseDSN
+	}
+
+	if flagDatabaseDSN == "" {
+		return errors.New("database dsn is missed. it is required. exiting")
+	}
+	return nil
 }
