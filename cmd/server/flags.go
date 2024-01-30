@@ -23,7 +23,7 @@ var (
 func parseFlags() error {
 	flag.StringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
 	flag.IntVar(&flagStoreInterval, "i", 300, "set interval in seconds to write metrics in file")
-	flag.StringVar(&flagFileStoragePath, "f", "/tmp/metrics-db.json", "")
+	flag.StringVar(&flagFileStoragePath, "f", "/tmp/metrics-db.json", "specify the file to save metrics to")
 	flag.BoolVar(&flagRestoreOnStart, "r", true, "Restore saved metrics on start")
 	flag.StringVar(&flagDatabaseDSN, "d", "", "database host connect to, user and password")
 
@@ -64,5 +64,6 @@ func parseFlags() error {
 	if flagDatabaseDSN == "" {
 		return errors.New("database dsn is missed. it is required. exiting")
 	}
+
 	return nil
 }

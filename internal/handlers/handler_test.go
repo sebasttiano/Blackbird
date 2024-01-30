@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/sebasttiano/Blackbird.git/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -31,12 +32,13 @@ func TestUpdateMetric(t *testing.T) {
 		{name: "Bad gauge value", url: "/update/gauge/TestMetric/aeew", method: http.MethodPost, expectedCode: http.StatusBadRequest, expectedBody: ""},
 	}
 
+	views := NewServerViews(storage.NewMemStorage(&storage.StoreSettings{SyncSave: false}))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := httptest.NewRequest(tt.method, tt.url, nil)
 			w := httptest.NewRecorder()
 
-			router := InitRouter()
+			router := views.InitRouter()
 			router.ServeHTTP(w, r)
 
 			assert.Equal(t, tt.expectedCode, w.Code, "Код ответа не совпадает с ожидаемым")

@@ -5,29 +5,30 @@ import (
 	"errors"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
-	"github.com/sebasttiano/Blackbird.git/templates"
 	"go.uber.org/zap"
 	"os"
 	"strconv"
 )
 
-var SrvFacility = NewServerFacility()
-
-func GetCurrentServerSettings() *ServerSettings {
-	return &SrvFacility.Settings
+type StoreSettings struct {
+	SyncSave     bool
+	FileSave     bool
+	SaveFilePath string
 }
 
 // MemStorage Keeps Gauge and Counter metrics
 type MemStorage struct {
-	Gauge   map[string]float64
-	Counter map[string]int64
+	Gauge    map[string]float64
+	Counter  map[string]int64
+	Settings *StoreSettings
 }
 
 // NewMemStorage — constructor of the type MemStorage.
-func NewMemStorage() *MemStorage {
+func NewMemStorage(storeSettings *StoreSettings) *MemStorage {
 	return &MemStorage{
-		Gauge:   make(map[string]float64),
-		Counter: make(map[string]int64),
+		Gauge:    make(map[string]float64),
+		Counter:  make(map[string]int64),
+		Settings: storeSettings,
 	}
 }
 
@@ -97,8 +98,8 @@ func (g *MemStorage) SetValue(metricName string, metricType string, metricValue 
 		return errors.New("error: unknown metric type. Only gauge and counter are available")
 	}
 
-	if SrvFacility.Settings.SyncSave {
-		if err := SrvFacility.LocalStorage.SaveToFile(SrvFacility.Settings.SaveFilePath); err != nil {
+	if g.Settings.SyncSave {
+		if err := g.SaveToFile(); err != nil {
 			logger.Log.Error("couldn`t save to the file", zap.Error(err))
 			return err
 		}
@@ -131,8 +132,8 @@ func (g *MemStorage) SetModelValue(metric *models.Metrics) error {
 		return errors.New("error: unknown metric type. Only gauge and counter are available")
 	}
 
-	if SrvFacility.Settings.SyncSave {
-		if err := SrvFacility.LocalStorage.SaveToFile(SrvFacility.Settings.SaveFilePath); err != nil {
+	if g.Settings.SyncSave {
+		if err := g.SaveToFile(); err != nil {
 			logger.Log.Error("couldn`t save to the file", zap.Error(err))
 			return err
 		}
@@ -140,16 +141,22 @@ func (g *MemStorage) SetModelValue(metric *models.Metrics) error {
 	return nil
 }
 
-func (g *MemStorage) SaveToFile(file string) error {
+func (g *MemStorage) SaveToFile() error {
+	if g.Settings.SaveFilePath == "" {
+		return errors.New("can`t save to file. no file path specify")
+	}
 	data, err := json.MarshalIndent(g, "", "   ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(file, data, 0666)
+	return os.WriteFile(g.Settings.SaveFilePath, data, 0666)
 }
 
-func (g *MemStorage) RestoreFromFile(file string) error {
-	data, err := os.ReadFile(file)
+func (g *MemStorage) RestoreFromFile() error {
+	if g.Settings.SaveFilePath == "" {
+		return errors.New("can`t restore from file. no file path specify")
+	}
+	data, err := os.ReadFile(g.Settings.SaveFilePath)
 	if err != nil {
 		return err
 	}
@@ -159,34 +166,11 @@ func (g *MemStorage) RestoreFromFile(file string) error {
 	return nil
 }
 
-type HandleMemStorage interface {
+type Store interface {
 	GetValue(metricName string, metricType string) (interface{}, error)
 	GetModelValue(metrics *models.Metrics) error
 	SetValue(metricName string, metricType string, metricValue string) error
 	SetModelValue(metric *models.Metrics) error
-	SaveToFile(file string) error
-	RestoreFromFile(file string) error
-}
-
-type ServerFacility struct {
-	LocalStorage  HandleMemStorage
-	HTMLTemplates templates.HTMLTemplates
-	Settings      ServerSettings
-}
-
-func NewServerFacility() ServerFacility {
-	return ServerFacility{
-		LocalStorage:  NewMemStorage(),
-		HTMLTemplates: templates.ParseTemplates(),
-		Settings: ServerSettings{
-			SyncSave:   false,
-			SaveToFile: true,
-		},
-	}
-}
-
-type ServerSettings struct {
-	SyncSave     bool
-	SaveToFile   bool
-	SaveFilePath string
+	SaveToFile() error
+	RestoreFromFile() error
 }

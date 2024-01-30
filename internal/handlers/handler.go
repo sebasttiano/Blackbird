@@ -16,31 +16,38 @@ import (
 	"time"
 )
 
-// InitRouter provides url and method schema and returns chi.Router
-func InitRouter() chi.Router {
+type ServerViews struct {
+	Store     storage.Store
+	templates templates.HTMLTemplates
+}
+
+func NewServerViews(store storage.Store) ServerViews {
+	return ServerViews{Store: store, templates: templates.ParseTemplates()}
+}
+
+func (s *ServerViews) InitRouter() chi.Router {
 
 	r := chi.NewRouter()
-	v := NewServerViews()
 
 	r.Use(middleware.RealIP)
 
 	r.Route("/", func(r chi.Router) {
-		r.Get("/", v.MainHandle)
-		r.Get("/ping", v.PingDB)
+		r.Get("/", s.MainHandle)
+		r.Get("/ping", s.PingDB)
 		r.Route("/value", func(r chi.Router) {
-			r.Post("/", v.GetMetricJSON)
+			r.Post("/", s.GetMetricJSON)
 			r.Route("/{metricType}", func(r chi.Router) {
 				r.Route("/{metricName}", func(r chi.Router) {
-					r.Get("/", v.GetMetric)
+					r.Get("/", s.GetMetric)
 				})
 			})
 		})
 		r.Route("/update", func(r chi.Router) {
-			r.Post("/", v.UpdateMetricJSON)
+			r.Post("/", s.UpdateMetricJSON)
 			r.Route("/{metricType}", func(r chi.Router) {
 				r.Route("/{metricName}", func(r chi.Router) {
 					r.Route("/{metricValue}", func(r chi.Router) {
-						r.Post("/", v.UpdateMetric)
+						r.Post("/", s.UpdateMetric)
 					})
 				})
 			})
@@ -49,20 +56,11 @@ func InitRouter() chi.Router {
 	return r
 }
 
-type ServerViews struct {
-	store     storage.HandleMemStorage
-	templates templates.HTMLTemplates
-}
-
-func NewServerViews() ServerViews {
-	return ServerViews{store: storage.SrvFacility.LocalStorage, templates: storage.SrvFacility.HTMLTemplates}
-}
-
 // MainHandle render html with all available metrics at the moment
 func (s *ServerViews) MainHandle(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "text/html")
-	if err := s.templates.IndexTemplate.Execute(res, s.store); err != nil {
+	if err := s.templates.IndexTemplate.Execute(res, s.Store); err != nil {
 		logger.Log.Error("couldn`t render the html template", zap.Error(err))
 		res.WriteHeader(http.StatusInternalServerError)
 	}
@@ -74,7 +72,7 @@ func (s *ServerViews) GetMetric(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "metricType")
 	metricName := chi.URLParam(req, "metricName")
 
-	value, err := s.store.GetValue(metricName, metricType)
+	value, err := s.Store.GetValue(metricName, metricType)
 	if err != nil {
 		logger.Log.Error("couldn`t find requested metric. ", zap.Error(err))
 		res.WriteHeader(http.StatusNotFound)
@@ -99,7 +97,7 @@ func (s *ServerViews) GetMetricJSON(res http.ResponseWriter, req *http.Request) 
 		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
-	if err := s.store.GetModelValue(&metrics); err != nil {
+	if err := s.Store.GetModelValue(&metrics); err != nil {
 		logger.Log.Debug("couldn`t get model", zap.Error(err))
 		http.Error(res, "couldn`t get model", http.StatusNotFound)
 	}
@@ -118,7 +116,7 @@ func (s *ServerViews) UpdateMetric(res http.ResponseWriter, req *http.Request) {
 	metricName := chi.URLParam(req, "metricName")
 	metricValue := chi.URLParam(req, "metricValue")
 
-	if err := s.store.SetValue(metricName, metricType, metricValue); err != nil {
+	if err := s.Store.SetValue(metricName, metricType, metricValue); err != nil {
 		logger.Log.Error("couldn`t save metric. error: ", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
@@ -141,7 +139,7 @@ func (s *ServerViews) UpdateMetricJSON(res http.ResponseWriter, req *http.Reques
 		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
-	if err := s.store.SetModelValue(&metrics); err != nil {
+	if err := s.Store.SetModelValue(&metrics); err != nil {
 		logger.Log.Debug("couldn`t save metric. error: ", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}

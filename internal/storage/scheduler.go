@@ -1,18 +1,16 @@
 package storage
 
 import (
-	"fmt"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"time"
 )
 
-func TickerSaver(ticker *time.Ticker, file string) {
+func TickerSaver(ticker *time.Ticker, store Store) {
 	for {
 		<-ticker.C
-		localStorage := SrvFacility.LocalStorage
-		if err := localStorage.SaveToFile(file); err != nil {
+		if err := store.SaveToFile(); err != nil {
 			logger.Log.Error("can`t save metrics to file")
 		}
-		logger.Log.Debug(fmt.Sprintf("save metrics to file %s", file))
+		logger.Log.Debug("save metrics to file")
 	}
 }

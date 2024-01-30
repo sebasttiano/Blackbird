@@ -40,8 +40,7 @@ func main() {
 	<-done
 	logger.Log.Debug("shutdown signal interrupted")
 	if flagFileStoragePath != "" {
-		localStorage := storage.SrvFacility.LocalStorage
-		if err := localStorage.SaveToFile(flagFileStoragePath); err != nil {
+		if err := CurrentApp.store.SaveToFile(); err != nil {
 			logger.Log.Error("couldn`t finally save file after graceful shutdown", zap.Error(err))
 		}
 	}
@@ -50,27 +49,25 @@ func main() {
 func run() error {
 	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
 
-	localStorage := storage.SrvFacility.LocalStorage
-	settings := storage.GetCurrentServerSettings()
+	storeSettings := &storage.StoreSettings{SaveFilePath: flagFileStoragePath}
 
-	if flagStoreInterval > 0 && flagFileStoragePath != "" {
-		ticker := time.NewTicker(time.Second * time.Duration(flagStoreInterval))
-		go storage.TickerSaver(ticker, flagFileStoragePath)
-	}
-
-	if flagFileStoragePath == "" {
-		settings.SyncSave = false
-	}
 	if flagStoreInterval == 0 {
-		settings.SyncSave = true
-		settings.SaveFilePath = flagFileStoragePath
+		storeSettings.SyncSave = true
 	}
-	if flagRestoreOnStart && flagFileStoragePath != "" {
-		if err := localStorage.RestoreFromFile(flagFileStoragePath); err != nil {
+
+	CurrentApp.Initialize(storeSettings)
+
+	if flagStoreInterval > 0 {
+		ticker := time.NewTicker(time.Second * time.Duration(flagStoreInterval))
+		go storage.TickerSaver(ticker, CurrentApp.store)
+	}
+
+	if flagRestoreOnStart {
+		if err := CurrentApp.store.RestoreFromFile(); err != nil {
 			logger.Log.Error("couldn`t restore data from file")
 		}
 		logger.Log.Debug("metrics were restored from the file")
 	}
 
-	return http.ListenAndServe(flagRunAddr, handlers.WithLogging(handlers.GzipMiddleware(handlers.InitRouter())))
+	return http.ListenAndServe(flagRunAddr, handlers.WithLogging(handlers.GzipMiddleware(CurrentApp.views.InitRouter())))
 }
