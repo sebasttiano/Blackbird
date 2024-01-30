@@ -6,9 +6,14 @@ import (
 	"strconv"
 )
 
-var serverIPAddr string
-var pollInterval int64
-var reportInterval int64
+var (
+	serverIPAddr           string
+	flagLogLevel           string
+	pollInterval           int64
+	reportInterval         int64
+	httpClientRetry        = 3
+	httpClientRetryTimeout = 3
+)
 
 // parseFlags handles args of cli
 func parseFlags() {
@@ -26,5 +31,8 @@ func parseFlags() {
 	}
 	if envReportInterval := os.Getenv("REPORT_INTERVAL"); envReportInterval != "" {
 		reportInterval, _ = strconv.ParseInt(envReportInterval, 10, 64)
+	}
+	if envLogLevel := os.Getenv("LOG_LEVEL"); envLogLevel != "" {
+		flagLogLevel = envLogLevel
 	}
 }

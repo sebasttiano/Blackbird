@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,7 +12,7 @@ import (
 
 func TestGetMetrics(t *testing.T) {
 
-	router := handlers.InitRouter()
+	router := handlers.GzipMiddleware(handlers.InitRouter())
 	server := httptest.NewServer(router)
 	defer server.Close()
 	serverURL := server.URL
@@ -28,26 +29,26 @@ func TestGetMetrics(t *testing.T) {
 
 func TestIterateStructFieldsAndSend(t *testing.T) {
 
-	router := handlers.InitRouter()
+	router := handlers.GzipMiddleware(handlers.InitRouter())
 	server := httptest.NewServer(router)
 	defer server.Close()
 	serverURL := server.URL
-	client := NewHTTPClient(serverURL)
+	client := common.NewHTTPClient(serverURL, 3, 3)
 
 	tests := []struct {
 		name           string
 		notExpectedMsg string
-		testMetric     Metrics
+		testMetric     MetricsSet
 	}{
 		{
 			name:           "Test OK return code for all metrics",
 			notExpectedMsg: "server return code",
-			testMetric:     Metrics{Alloc: 134408, Mallocs: 312, MCacheInuse: 9600},
+			testMetric:     MetricsSet{Alloc: 134408, Mallocs: 312, MCacheInuse: 9600},
 		},
 		{
 			name:           "Test nice server parsing",
 			notExpectedMsg: "invalid syntax",
-			testMetric:     Metrics{HeapIdle: 3.35872, NumForcedGC: 0, BuckHashSys: 9600},
+			testMetric:     MetricsSet{HeapIdle: 3.35872, NumForcedGC: 0, BuckHashSys: 9600},
 		},
 	}
 	for _, tt := range tests {

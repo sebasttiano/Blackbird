@@ -1,20 +1,20 @@
 package main
 
 import (
-	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"log"
+	"github.com/sebasttiano/Blackbird.git/internal/common"
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
+	"github.com/sebasttiano/Blackbird.git/internal/models"
+	"go.uber.org/zap"
 	"math/rand"
-	"net/http"
 	"reflect"
 	"runtime"
-	"strings"
 	"time"
 )
 
-type Metrics struct {
+type MetricsSet struct {
 	Alloc,
 	TotalAlloc,
 	BuckHashSys,
@@ -48,12 +48,23 @@ type Metrics struct {
 
 func main() {
 	parseFlags()
-	fmt.Printf("Running agent with poll interval %d and report interval %d\n", pollInterval, reportInterval)
-	fmt.Printf("Metric storage server address is set to %s\n", serverIPAddr)
-	mh := NewMetricHandler(pollInterval, reportInterval, 30, "http://"+serverIPAddr)
-	if err := mh.GetMetrics(); err != nil {
-		log.Println("error in getmetrics occured")
+	if err := run(); err != nil {
+		logger.Log.Error("While executing agent, error occurred", zap.Error(err))
 	}
+}
+
+func run() error {
+
+	if err := logger.Initialize(flagLogLevel); err != nil {
+		return err
+	}
+	logger.Log.Info(fmt.Sprintf("Running agent with poll interval %d and report interval %d\n", pollInterval, reportInterval))
+	logger.Log.Info(fmt.Sprintf("Metric storage server address is set to %s\n", serverIPAddr))
+	mh := NewMetricHandler(pollInterval, reportInterval, 600, "http://"+serverIPAddr)
+	if err := mh.GetMetrics(); err != nil {
+		logger.Log.Error("error in getmetrics occured", zap.Error(err))
+	}
+	return nil
 }
 
 type MetricHandler struct {
@@ -62,9 +73,9 @@ type MetricHandler struct {
 	getCounter,
 	sendCounter time.Duration
 	stopLimit int
-	client    HTTPClient
+	client    common.HTTPClient
 	rtm       runtime.MemStats
-	metrics   Metrics
+	metrics   MetricsSet
 }
 
 func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, serverAddr string) MetricHandler {
@@ -74,13 +85,12 @@ func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, serverA
 		getCounter:   time.Duration(1) * time.Second,
 		sendCounter:  time.Duration(1) * time.Second,
 		stopLimit:    stopLimit,
-		client:       NewHTTPClient(serverAddr),
+		client:       common.NewHTTPClient(serverAddr, httpClientRetryTimeout, httpClientRetry),
 	}
 }
 
 func (m *MetricHandler) GetMetrics() error {
 
-	var err error
 	m.metrics.PollCount = 0
 
 	for i := 0; m.stopLimit > i; i++ { // TODO make infinite when stoplimit == 0
@@ -124,8 +134,9 @@ func (m *MetricHandler) GetMetrics() error {
 		}
 
 		if m.sendCounter == m.sendInterval {
-			if err = IterateStructFieldsAndSend(m.metrics, m.client); err != nil {
-				return err
+			if err := IterateStructFieldsAndSend(m.metrics, m.client); err != nil {
+				logger.Log.Error("failed to send metrics to server. error:", zap.Error(err))
+				continue
 			}
 			m.sendCounter = 0 * time.Second
 		}
@@ -137,9 +148,7 @@ func (m *MetricHandler) GetMetrics() error {
 }
 
 // IterateStructFieldsAndSend prepares url with values and make post request to server
-func IterateStructFieldsAndSend(input interface{}, client HTTPClient) error {
-
-	var posturl string
+func IterateStructFieldsAndSend(input interface{}, client common.HTTPClient) error {
 
 	value := reflect.ValueOf(input)
 	numFields := value.NumField()
@@ -148,18 +157,41 @@ func IterateStructFieldsAndSend(input interface{}, client HTTPClient) error {
 	for i := 0; i < numFields; i++ {
 		field := structType.Field(i)
 		fieldValue := value.Field(i)
+		var metrics models.Metrics
+		metrics.ID = field.Name
+
 		if fieldValue.CanInt() {
-			posturl = fmt.Sprintf("/update/counter/%s/%d", field.Name, fieldValue.Int())
+			counterVal := fieldValue.Int()
+			metrics.Delta = &counterVal
+			metrics.MType = "counter"
 
 		} else {
-			posturl = fmt.Sprintf("/update/gauge/%s/%0.f", field.Name, fieldValue.Float())
-
+			gaugeVal := fieldValue.Float()
+			metrics.Value = &gaugeVal
+			metrics.MType = "gauge"
 		}
 
 		// Make an HTTP post request
-		res, err := client.Post(posturl, bytes.NewBuffer([]byte{}), "Content-Type: text/plain")
+		reqBody, err := json.Marshal(metrics)
 		if err != nil {
+			logger.Log.Error("couldn`t serialize to json", zap.Error(err))
 			return err
+		}
+
+		compressedData, err := common.Compress(reqBody)
+		if err != nil {
+			logger.Log.Error("failed to compress data to gzip", zap.Error(err))
+		}
+
+		res, err := client.Post("/update/", compressedData, map[string]string{"Content-Type": "application/json", "Content-Encoding": "gzip"})
+
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("couldn`t send metrics %s", field.Name), zap.Error(err))
+			if errors.Is(err, client.ClientErrors.ErrConnect) {
+				continue
+			} else {
+				return err
+			}
 		}
 		res.Body.Close()
 
@@ -168,38 +200,4 @@ func IterateStructFieldsAndSend(input interface{}, client HTTPClient) error {
 		}
 	}
 	return nil
-}
-
-// HTTPClient simple client
-type HTTPClient struct {
-	url string
-}
-
-func NewHTTPClient(url string) HTTPClient {
-	return HTTPClient{url: url}
-}
-
-// Post implements http post requests
-func (c HTTPClient) Post(urlSuffix string, body io.Reader, header string) (*http.Response, error) {
-
-	r, err := http.NewRequest("POST", c.url+urlSuffix, body)
-	if err != nil {
-		return nil, err
-	}
-	if header != "" {
-		splitHeader := strings.Split(header, ":")
-		if len(splitHeader) == 2 {
-			r.Header.Add(splitHeader[0], splitHeader[1])
-		} else {
-			return nil, errors.New("error: check passed header,  it should be in the format '<Name>: <Value>'")
-		}
-
-	}
-	client := &http.Client{}
-	res, err := client.Do(r)
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
 }
