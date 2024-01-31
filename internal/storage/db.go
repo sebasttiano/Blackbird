@@ -170,6 +170,11 @@ func (d *DBStorage) GetAllValues(ctx context.Context) (s *StoreMetrics) {
 	}
 	defer gRows.Close()
 
+	err = gRows.Err()
+	if err != nil {
+		logger.Log.Error("rows error occured: ", zap.Error(err))
+	}
+
 	cRows, err := d.conn.QueryContext(ctx, `
 		SELECT 
 		    c.name,
@@ -188,8 +193,13 @@ func (d *DBStorage) GetAllValues(ctx context.Context) (s *StoreMetrics) {
 			s.Counter = append(s.Counter, m)
 		}
 	}
-
 	defer cRows.Close()
+
+	err = cRows.Err()
+	if err != nil {
+		logger.Log.Error("rows error occured: ", zap.Error(err))
+	}
+
 	return s
 }
 

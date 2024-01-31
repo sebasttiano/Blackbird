@@ -45,11 +45,11 @@ func run() error {
 
 	var conn *sql.DB
 	conn, err := sql.Open("pgx", flagDatabaseDSN)
-	defer conn.Close()
-	storeSettings.Conn = conn
 	if err != nil {
 		logger.Log.Error("database openning failed", zap.Error(err))
 	}
+	defer conn.Close()
+	storeSettings.Conn = conn
 
 	if flagDatabaseDSN != "" {
 		storeSettings.DBSave = true
