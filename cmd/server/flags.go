@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"os"
@@ -60,10 +59,5 @@ func parseFlags() error {
 	if envDatabaseDSN := os.Getenv("DATABASE_DSN"); envDatabaseDSN != "" {
 		flagDatabaseDSN = envDatabaseDSN
 	}
-
-	if flagDatabaseDSN == "" {
-		return errors.New("database dsn is missed. it is required. exiting")
-	}
-
 	return nil
 }

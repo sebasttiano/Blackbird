@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
@@ -27,7 +28,7 @@ func NewMemStorage(storeSettings *StoreSettings) *MemStorage {
 }
 
 // GetValue returns either gauge or counter metrics
-func (g *MemStorage) GetValue(metricName string, metricType string) (interface{}, error) {
+func (g *MemStorage) GetValue(ctx context.Context, metricName string, metricType string) (interface{}, error) {
 	switch metricType {
 	case "gauge":
 		value, ok := g.Gauge[metricName]
@@ -47,7 +48,7 @@ func (g *MemStorage) GetValue(metricName string, metricType string) (interface{}
 }
 
 // GetModelValue returns either gauge or counter metrics
-func (g *MemStorage) GetModelValue(metric *models.Metrics) error {
+func (g *MemStorage) GetModelValue(ctx context.Context, metric *models.Metrics) error {
 
 	if metric.ID == "" {
 		return errors.New("name of the metric is required")
@@ -74,7 +75,7 @@ func (g *MemStorage) GetModelValue(metric *models.Metrics) error {
 }
 
 // SetValue saves either gauge or counter metrics
-func (g *MemStorage) SetValue(metricName string, metricType string, metricValue string) error {
+func (g *MemStorage) SetValue(ctx context.Context, metricName string, metricType string, metricValue string) error {
 	switch metricType {
 	case "gauge":
 		valueFloat, err := strconv.ParseFloat(metricValue, 64)
@@ -102,7 +103,7 @@ func (g *MemStorage) SetValue(metricName string, metricType string, metricValue 
 }
 
 // SetModelValue saves either gauge or counter metrics from model
-func (g *MemStorage) SetModelValue(metric *models.Metrics) error {
+func (g *MemStorage) SetModelValue(ctx context.Context, metric *models.Metrics) error {
 
 	if metric.ID == "" {
 		return errors.New("name of the metric is required")
@@ -160,11 +161,16 @@ func (g *MemStorage) Restore() error {
 	return nil
 }
 
-type Store interface {
-	GetValue(metricName string, metricType string) (interface{}, error)
-	GetModelValue(metrics *models.Metrics) error
-	SetValue(metricName string, metricType string, metricValue string) error
-	SetModelValue(metric *models.Metrics) error
-	Save() error
-	Restore() error
+func (g *MemStorage) GetAllValues(ctx context.Context) *StoreMetrics {
+
+	storeMetrics := &StoreMetrics{}
+
+	for key, value := range g.Gauge {
+		storeMetrics.Gauge = append(storeMetrics.Gauge, GaugeMetric{name: key, value: value})
+	}
+
+	for key, value := range g.Counter {
+		storeMetrics.Counter = append(storeMetrics.Counter, CounterMetric{name: key, value: value})
+	}
+	return storeMetrics
 }

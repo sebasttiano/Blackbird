@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/storage"
 )
 
@@ -23,10 +24,13 @@ func newApp() *app {
 // Initialize принимает на вход внешние зависимости приложения и инициализирует его
 func (a *app) Initialize(s *storage.StoreSettings) {
 
+	a.conn = s.Conn
+
 	if s.DBSave && s.Conn != nil {
-		a.conn = s.Conn
+		logger.Log.Info("init database storage")
 		a.store = storage.NewDBStorage(a.conn, true)
 	} else {
+		logger.Log.Info("init mem storage")
 		a.store = storage.NewMemStorage(s)
 	}
 	a.views = handlers.NewServerViews(a.store)

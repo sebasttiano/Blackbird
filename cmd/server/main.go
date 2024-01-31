@@ -68,7 +68,7 @@ func run() error {
 		go storage.TickerSaver(ticker, currentApp.store)
 	}
 
-	if flagRestoreOnStart {
+	if flagRestoreOnStart && storeSettings.FileSave {
 		if err := currentApp.store.Restore(); err != nil {
 			logger.Log.Error("couldn`t restore data")
 		}
