@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi/v5"
@@ -19,6 +20,7 @@ import (
 type ServerViews struct {
 	Store     storage.Store
 	templates templates.HTMLTemplates
+	DB        *sql.DB
 }
 
 func NewServerViews(store storage.Store) ServerViews {
@@ -155,7 +157,7 @@ func (s *ServerViews) UpdateMetricJSON(res http.ResponseWriter, req *http.Reques
 func (s *ServerViews) PingDB(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	if err := storage.DB.PingContext(ctx); err != nil {
+	if err := s.DB.PingContext(ctx); err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 }

@@ -19,20 +19,12 @@ func main() {
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	if err := parseFlags(); err != nil {
+		fmt.Printf("parsing flags failed: %s\n", err.Error())
+	}
 	if err := logger.Initialize(flagLogLevel); err != nil {
 		fmt.Println("logger initialization failed")
 		return
-	}
-	if err := parseFlags(); err != nil {
-		logger.Log.Error("parsing flags failed: ", zap.Error(err))
-	}
-
-	var err error
-	storage.DB, err = sql.Open("pgx", flagDatabaseDSN)
-	defer storage.DB.Close()
-
-	if err != nil {
-		logger.Log.Error("database openning failed", zap.Error(err))
 	}
 
 	go run()
@@ -40,34 +32,49 @@ func main() {
 	<-done
 	logger.Log.Debug("shutdown signal interrupted")
 	if flagFileStoragePath != "" {
-		if err := CurrentApp.store.SaveToFile(); err != nil {
+		if err := currentApp.store.Save(); err != nil {
 			logger.Log.Error("couldn`t finally save file after graceful shutdown", zap.Error(err))
 		}
 	}
 }
 
+// run init dependencies and starts http server
 func run() error {
-	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
 
 	storeSettings := &storage.StoreSettings{SaveFilePath: flagFileStoragePath}
+
+	var conn *sql.DB
+	conn, err := sql.Open("pgx", flagDatabaseDSN)
+	defer conn.Close()
+	storeSettings.Conn = conn
+	if err != nil {
+		logger.Log.Error("database openning failed", zap.Error(err))
+	}
+
+	if flagDatabaseDSN != "" {
+		storeSettings.DBSave = true
+	} else if flagFileStoragePath != "" {
+		storeSettings.FileSave = true
+	}
 
 	if flagStoreInterval == 0 {
 		storeSettings.SyncSave = true
 	}
 
-	CurrentApp.Initialize(storeSettings)
+	currentApp.Initialize(storeSettings)
 
 	if flagStoreInterval > 0 {
 		ticker := time.NewTicker(time.Second * time.Duration(flagStoreInterval))
-		go storage.TickerSaver(ticker, CurrentApp.store)
+		go storage.TickerSaver(ticker, currentApp.store)
 	}
 
 	if flagRestoreOnStart {
-		if err := CurrentApp.store.RestoreFromFile(); err != nil {
-			logger.Log.Error("couldn`t restore data from file")
+		if err := currentApp.store.Restore(); err != nil {
+			logger.Log.Error("couldn`t restore data")
 		}
-		logger.Log.Debug("metrics were restored from the file")
+		logger.Log.Debug("metrics were restored")
 	}
 
-	return http.ListenAndServe(flagRunAddr, handlers.WithLogging(handlers.GzipMiddleware(CurrentApp.views.InitRouter())))
+	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
+	return http.ListenAndServe(flagRunAddr, handlers.WithLogging(handlers.GzipMiddleware(currentApp.views.InitRouter())))
 }

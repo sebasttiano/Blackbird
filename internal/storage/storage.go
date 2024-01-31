@@ -10,12 +10,6 @@ import (
 	"strconv"
 )
 
-type StoreSettings struct {
-	SyncSave     bool
-	FileSave     bool
-	SaveFilePath string
-}
-
 // MemStorage Keeps Gauge and Counter metrics
 type MemStorage struct {
 	Gauge    map[string]float64
@@ -99,7 +93,7 @@ func (g *MemStorage) SetValue(metricName string, metricType string, metricValue 
 	}
 
 	if g.Settings.SyncSave {
-		if err := g.SaveToFile(); err != nil {
+		if err := g.Save(); err != nil {
 			logger.Log.Error("couldn`t save to the file", zap.Error(err))
 			return err
 		}
@@ -133,7 +127,7 @@ func (g *MemStorage) SetModelValue(metric *models.Metrics) error {
 	}
 
 	if g.Settings.SyncSave {
-		if err := g.SaveToFile(); err != nil {
+		if err := g.Save(); err != nil {
 			logger.Log.Error("couldn`t save to the file", zap.Error(err))
 			return err
 		}
@@ -141,7 +135,7 @@ func (g *MemStorage) SetModelValue(metric *models.Metrics) error {
 	return nil
 }
 
-func (g *MemStorage) SaveToFile() error {
+func (g *MemStorage) Save() error {
 	if g.Settings.SaveFilePath == "" {
 		return errors.New("can`t save to file. no file path specify")
 	}
@@ -152,7 +146,7 @@ func (g *MemStorage) SaveToFile() error {
 	return os.WriteFile(g.Settings.SaveFilePath, data, 0666)
 }
 
-func (g *MemStorage) RestoreFromFile() error {
+func (g *MemStorage) Restore() error {
 	if g.Settings.SaveFilePath == "" {
 		return errors.New("can`t restore from file. no file path specify")
 	}
@@ -171,6 +165,6 @@ type Store interface {
 	GetModelValue(metrics *models.Metrics) error
 	SetValue(metricName string, metricType string, metricValue string) error
 	SetModelValue(metric *models.Metrics) error
-	SaveToFile() error
-	RestoreFromFile() error
+	Save() error
+	Restore() error
 }
