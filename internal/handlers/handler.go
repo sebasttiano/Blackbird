@@ -36,7 +36,7 @@ func (s *ServerViews) InitRouter() chi.Router {
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", s.MainHandle)
 		r.Get("/ping", s.PingDB)
-		r.Post("/updates", s.UpdateMetricsJSON)
+		r.Post("/updates/", s.UpdateMetricsJSON)
 		r.Route("/value", func(r chi.Router) {
 			r.Post("/", s.GetMetricJSON)
 			r.Route("/{metricType}", func(r chi.Router) {

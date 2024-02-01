@@ -130,7 +130,7 @@ func (d *DBStorage) SetModelValue(ctx context.Context, metrics []*models.Metrics
 			if metric.Value == nil {
 				return errors.New("value of the gauge is required")
 			}
-			if err := d.SetValue(ctx, metric.ID, metric.MType, fmt.Sprintf("%f", *metric.Value)); err != nil {
+			if err := d.SetValue(ctx, metric.ID, metric.MType, fmt.Sprintf("%.12f", *metric.Value)); err != nil {
 				return err
 			}
 

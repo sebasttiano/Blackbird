@@ -189,7 +189,7 @@ func IterateStructFieldsAndSend(input interface{}, client common.HTTPClient) err
 			logger.Log.Error("failed to compress data to gzip", zap.Error(err))
 		}
 
-		res, err := client.Post("/updates", compressedData, map[string]string{"Content-Type": "application/json", "Content-Encoding": "gzip"})
+		res, err := client.Post("/updates/", compressedData, map[string]string{"Content-Type": "application/json", "Content-Encoding": "gzip"})
 
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("couldn`t send metrics batch of length %d", len(metricsBatch)), zap.Error(err))
