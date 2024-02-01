@@ -117,30 +117,33 @@ func (d *DBStorage) SetValue(ctx context.Context, metricName string, metricType 
 }
 
 // SetModelValue saves either gauge or counter metrics from model
-func (d *DBStorage) SetModelValue(ctx context.Context, metric *models.Metrics) error {
+func (d *DBStorage) SetModelValue(ctx context.Context, metrics []*models.Metrics) error {
 
-	if metric.ID == "" {
-		return errors.New("name of the metric is required")
-	}
+	for _, metric := range metrics {
 
-	switch metric.MType {
-	case "gauge":
-		if metric.Value == nil {
-			return errors.New("value of the gauge is required")
-		}
-		if err := d.SetValue(ctx, metric.ID, metric.MType, fmt.Sprintf("%f", *metric.Value)); err != nil {
-			return err
+		if metric.ID == "" {
+			return errors.New("name of the metric is required")
 		}
 
-	case "counter":
-		if metric.Delta == nil {
-			return errors.New("value of the counter is required")
+		switch metric.MType {
+		case "gauge":
+			if metric.Value == nil {
+				return errors.New("value of the gauge is required")
+			}
+			if err := d.SetValue(ctx, metric.ID, metric.MType, fmt.Sprintf("%f", *metric.Value)); err != nil {
+				return err
+			}
+
+		case "counter":
+			if metric.Delta == nil {
+				return errors.New("value of the counter is required")
+			}
+			if err := d.SetValue(ctx, metric.ID, metric.MType, fmt.Sprintf("%d", *metric.Delta)); err != nil {
+				return err
+			}
+		default:
+			return errors.New("error: unknown metric type. Only gauge and counter are available")
 		}
-		if err := d.SetValue(ctx, metric.ID, metric.MType, fmt.Sprintf("%d", *metric.Delta)); err != nil {
-			return err
-		}
-	default:
-		return errors.New("error: unknown metric type. Only gauge and counter are available")
 	}
 	return nil
 }

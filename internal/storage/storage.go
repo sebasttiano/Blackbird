@@ -103,30 +103,31 @@ func (g *MemStorage) SetValue(ctx context.Context, metricName string, metricType
 }
 
 // SetModelValue saves either gauge or counter metrics from model
-func (g *MemStorage) SetModelValue(ctx context.Context, metric *models.Metrics) error {
+func (g *MemStorage) SetModelValue(ctx context.Context, metrics []*models.Metrics) error {
 
-	if metric.ID == "" {
-		return errors.New("name of the metric is required")
-	}
-
-	switch metric.MType {
-	case "gauge":
-		if metric.Value == nil {
-			return errors.New("value of the gauge is required")
+	for _, metric := range metrics {
+		if metric.ID == "" {
+			return errors.New("name of the metric is required")
 		}
 
-		g.Gauge[metric.ID] = *metric.Value
-	case "counter":
+		switch metric.MType {
+		case "gauge":
+			if metric.Value == nil {
+				return errors.New("value of the gauge is required")
+			}
 
-		if metric.Delta == nil {
-			return errors.New("value of the gauge is required")
+			g.Gauge[metric.ID] = *metric.Value
+		case "counter":
+
+			if metric.Delta == nil {
+				return errors.New("value of the gauge is required")
+			}
+			g.Counter[metric.ID] += *metric.Delta
+			*metric.Delta = g.Counter[metric.ID]
+		default:
+			return errors.New("error: unknown metric type. Only gauge and counter are available")
 		}
-		g.Counter[metric.ID] += *metric.Delta
-		*metric.Delta = g.Counter[metric.ID]
-	default:
-		return errors.New("error: unknown metric type. Only gauge and counter are available")
 	}
-
 	if g.Settings.SyncSave {
 		if err := g.Save(); err != nil {
 			logger.Log.Error("couldn`t save to the file", zap.Error(err))

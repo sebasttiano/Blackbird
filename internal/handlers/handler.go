@@ -36,6 +36,7 @@ func (s *ServerViews) InitRouter() chi.Router {
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", s.MainHandle)
 		r.Get("/ping", s.PingDB)
+		r.Post("/updates", s.UpdateMetricsJSON)
 		r.Route("/value", func(r chi.Router) {
 			r.Post("/", s.GetMetricJSON)
 			r.Route("/{metricType}", func(r chi.Router) {
@@ -159,7 +160,36 @@ func (s *ServerViews) UpdateMetricJSON(res http.ResponseWriter, req *http.Reques
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	if err := s.Store.SetModelValue(ctx, &metrics); err != nil {
+	if err := s.Store.SetModelValue(ctx, []*models.Metrics{&metrics}); err != nil {
+		logger.Log.Debug("couldn`t save metric. error: ", zap.Error(err))
+		http.Error(res, err.Error(), http.StatusBadRequest)
+	}
+
+	enc := json.NewEncoder(res)
+	if err := enc.Encode(metrics); err != nil {
+		logger.Log.Debug("error encoding response", zap.Error(err))
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (s *ServerViews) UpdateMetricsJSON(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+
+	if req.Header.Get("Content-Type") != "application/json" {
+		logger.Log.Error("got request with wrong header", zap.String("Content-Type", req.Header.Get("Content-Type")))
+		http.Error(res, "error: check your header Content-Type", http.StatusBadRequest)
+	}
+	var metrics []*models.Metrics
+	dec := json.NewDecoder(req.Body)
+	if err := dec.Decode(&metrics); err != nil {
+		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	if err := s.Store.SetModelValue(ctx, metrics); err != nil {
 		logger.Log.Debug("couldn`t save metric. error: ", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
