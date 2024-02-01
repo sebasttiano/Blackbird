@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
@@ -150,6 +149,9 @@ func (m *MetricHandler) GetMetrics() error {
 // IterateStructFieldsAndSend prepares url with values and make post request to server
 func IterateStructFieldsAndSend(input interface{}, client common.HTTPClient) error {
 
+	var metrics models.Metrics
+	var metricsBatch []models.Metrics
+
 	value := reflect.ValueOf(input)
 	numFields := value.NumField()
 	structType := value.Type()
@@ -157,7 +159,6 @@ func IterateStructFieldsAndSend(input interface{}, client common.HTTPClient) err
 	for i := 0; i < numFields; i++ {
 		field := structType.Field(i)
 		fieldValue := value.Field(i)
-		var metrics models.Metrics
 		metrics.ID = field.Name
 
 		if fieldValue.CanInt() {
@@ -171,8 +172,13 @@ func IterateStructFieldsAndSend(input interface{}, client common.HTTPClient) err
 			metrics.MType = "gauge"
 		}
 
+		metricsBatch = append(metricsBatch, metrics)
+	}
+
+	if len(metricsBatch) > 0 {
+
 		// Make an HTTP post request
-		reqBody, err := json.Marshal(metrics)
+		reqBody, err := json.Marshal(metricsBatch)
 		if err != nil {
 			logger.Log.Error("couldn`t serialize to json", zap.Error(err))
 			return err
@@ -183,20 +189,16 @@ func IterateStructFieldsAndSend(input interface{}, client common.HTTPClient) err
 			logger.Log.Error("failed to compress data to gzip", zap.Error(err))
 		}
 
-		res, err := client.Post("/update/", compressedData, map[string]string{"Content-Type": "application/json", "Content-Encoding": "gzip"})
+		res, err := client.Post("/updates", compressedData, map[string]string{"Content-Type": "application/json", "Content-Encoding": "gzip"})
 
 		if err != nil {
-			logger.Log.Error(fmt.Sprintf("couldn`t send metrics %s", field.Name), zap.Error(err))
-			if errors.Is(err, client.ClientErrors.ErrConnect) {
-				continue
-			} else {
-				return err
-			}
+			logger.Log.Error(fmt.Sprintf("couldn`t send metrics batch of length %d", len(metricsBatch)), zap.Error(err))
+			return err
 		}
 		res.Body.Close()
 
 		if res.StatusCode != 200 {
-			return fmt.Errorf("error: server return code %d, while sending metric %s", res.StatusCode, field.Name)
+			return fmt.Errorf("error: server return code %d, while sending metric batch", res.StatusCode)
 		}
 	}
 	return nil
