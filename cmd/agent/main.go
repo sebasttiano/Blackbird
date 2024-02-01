@@ -84,7 +84,7 @@ func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, serverA
 		getCounter:   time.Duration(1) * time.Second,
 		sendCounter:  time.Duration(1) * time.Second,
 		stopLimit:    stopLimit,
-		client:       common.NewHTTPClient(serverAddr, httpClientRetryTimeout, httpClientRetry),
+		client:       common.NewHTTPClient(serverAddr, httpClientRetry, httpClientRetryBackoff),
 	}
 }
 

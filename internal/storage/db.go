@@ -17,6 +17,10 @@ type DBStorage struct {
 	conn *sql.DB
 }
 
+type DBErrors struct {
+	ErrConnect error
+}
+
 var pgError *pgconn.PgError
 
 // GetValue returns either gauge or counter metrics

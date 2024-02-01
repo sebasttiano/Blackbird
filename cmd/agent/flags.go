@@ -12,7 +12,7 @@ var (
 	pollInterval           int64
 	reportInterval         int64
 	httpClientRetry        = 3
-	httpClientRetryTimeout = 3
+	httpClientRetryBackoff = 1
 )
 
 // parseFlags handles args of cli
