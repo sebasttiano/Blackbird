@@ -1,8 +1,6 @@
 package common
 
 import (
-	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
@@ -67,25 +65,4 @@ func (c HTTPClient) Post(urlSuffix string, body io.Reader, headers map[string]st
 	}
 
 	return res, nil
-}
-
-type PGClient struct {
-	conn      *sql.DB
-	retriesIn []int
-}
-
-// NewPGClient creates client and retries chrony calculdates
-func NewPGClient(c *sql.DB, retries int, backoffFactor int) PGClient {
-	var ri []int
-	for i := 1; i <= retries; i++ {
-		ri = append(ri, 2*i-backoffFactor)
-	}
-	return PGClient{
-		conn:      c,
-		retriesIn: ri,
-	}
-}
-
-func (p *PGClient) Query(ctx context.Context, query string, arg ...string) *sql.Row {
-	return nil
 }

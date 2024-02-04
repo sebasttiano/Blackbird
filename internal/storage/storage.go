@@ -167,11 +167,11 @@ func (g *MemStorage) GetAllValues(ctx context.Context) *StoreMetrics {
 	storeMetrics := &StoreMetrics{}
 
 	for key, value := range g.Gauge {
-		storeMetrics.Gauge = append(storeMetrics.Gauge, GaugeMetric{name: key, value: value})
+		storeMetrics.Gauge = append(storeMetrics.Gauge, GaugeMetric{Name: key, Value: value})
 	}
 
 	for key, value := range g.Counter {
-		storeMetrics.Counter = append(storeMetrics.Counter, CounterMetric{name: key, value: value})
+		storeMetrics.Counter = append(storeMetrics.Counter, CounterMetric{Name: key, Value: value})
 	}
 	return storeMetrics
 }

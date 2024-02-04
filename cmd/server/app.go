@@ -1,7 +1,7 @@
 package main
 
 import (
-	"database/sql"
+	"github.com/jmoiron/sqlx"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/storage"
@@ -13,7 +13,7 @@ var currentApp = newApp()
 type app struct {
 	store storage.Store
 	views handlers.ServerViews
-	conn  *sql.DB
+	conn  *sqlx.DB
 }
 
 // конструктор app
@@ -28,7 +28,7 @@ func (a *app) Initialize(s *storage.StoreSettings) {
 
 	if s.DBSave && s.Conn != nil {
 		logger.Log.Info("init database storage")
-		a.store = storage.NewDBStorage(a.conn, true)
+		a.store = storage.NewDBStorage(a.conn, true, s.Retries, s.BackoffFactor)
 	} else {
 		logger.Log.Info("init mem storage")
 		a.store = storage.NewMemStorage(s)

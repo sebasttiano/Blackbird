@@ -1,9 +1,9 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/storage"
@@ -41,10 +41,10 @@ func main() {
 // run init dependencies and starts http server
 func run() error {
 
-	storeSettings := &storage.StoreSettings{SaveFilePath: flagFileStoragePath}
+	storeSettings := &storage.StoreSettings{SaveFilePath: flagFileStoragePath, Retries: retriesDB, BackoffFactor: backoffFactor}
 
-	var conn *sql.DB
-	conn, err := sql.Open("pgx", flagDatabaseDSN)
+	var conn *sqlx.DB
+	conn, err := sqlx.Connect("pgx", flagDatabaseDSN)
 	if err != nil {
 		logger.Log.Error("database openning failed", zap.Error(err))
 	}

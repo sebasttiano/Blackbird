@@ -2,11 +2,11 @@ package handlers
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jmoiron/sqlx"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
 	"github.com/sebasttiano/Blackbird.git/internal/storage"
@@ -20,7 +20,7 @@ import (
 type ServerViews struct {
 	Store     storage.Store
 	templates templates.HTMLTemplates
-	DB        *sql.DB
+	DB        *sqlx.DB
 }
 
 func NewServerViews(store storage.Store) ServerViews {
@@ -61,7 +61,7 @@ func (s *ServerViews) InitRouter() chi.Router {
 
 // MainHandle render html with all available metrics at the moment
 func (s *ServerViews) MainHandle(res http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	res.Header().Set("Content-Type", "text/html")
@@ -76,7 +76,7 @@ func (s *ServerViews) MainHandle(res http.ResponseWriter, req *http.Request) {
 // response
 func (s *ServerViews) GetMetric(res http.ResponseWriter, req *http.Request) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	metricType := chi.URLParam(req, "metricType")
@@ -108,7 +108,7 @@ func (s *ServerViews) GetMetricJSON(res http.ResponseWriter, req *http.Request) 
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := s.Store.GetModelValue(ctx, &metrics); err != nil {
@@ -126,7 +126,7 @@ func (s *ServerViews) GetMetricJSON(res http.ResponseWriter, req *http.Request) 
 // UpdateMetric handles update metrics request
 func (s *ServerViews) UpdateMetric(res http.ResponseWriter, req *http.Request) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	metricType := chi.URLParam(req, "metricType")
@@ -157,7 +157,7 @@ func (s *ServerViews) UpdateMetricJSON(res http.ResponseWriter, req *http.Reques
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := s.Store.SetModelValue(ctx, []*models.Metrics{&metrics}); err != nil {
@@ -186,7 +186,7 @@ func (s *ServerViews) UpdateMetricsJSON(res http.ResponseWriter, req *http.Reque
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := s.Store.SetModelValue(ctx, metrics); err != nil {

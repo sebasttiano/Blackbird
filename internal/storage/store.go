@@ -2,26 +2,30 @@ package storage
 
 import (
 	"context"
-	"database/sql"
+	"github.com/jmoiron/sqlx"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
 )
 
 type StoreSettings struct {
-	SyncSave     bool
-	FileSave     bool
-	DBSave       bool
-	Conn         *sql.DB
-	SaveFilePath string
+	SyncSave      bool
+	FileSave      bool
+	DBSave        bool
+	Conn          *sqlx.DB
+	SaveFilePath  string
+	Retries       uint
+	BackoffFactor uint
 }
 
 type GaugeMetric struct {
-	name  string
-	value float64
+	Id    int64   `db:"id"`
+	Name  string  `db:"name"`
+	Value float64 `db:"gauge"`
 }
 
 type CounterMetric struct {
-	name  string
-	value int64
+	Id    int64  `db:"id"`
+	Name  string `db:"name"`
+	Value int64  `db:"counter"`
 }
 
 type StoreMetrics struct {

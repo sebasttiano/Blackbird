@@ -2,45 +2,49 @@ package storage
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jmoiron/sqlx"
+	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
 	"go.uber.org/zap"
+	"strconv"
 	"time"
 )
 
 // DBStorage Keeps metrics in database
 type DBStorage struct {
-	conn *sql.DB
+	conn   *sqlx.DB
+	client *PGClient
 }
 
 type DBErrors struct {
 	ErrConnect error
 }
 
-var pgError *pgconn.PgError
+var PGError *pgconn.PgError
 
 // GetValue returns either gauge or counter metrics
 func (d *DBStorage) GetValue(ctx context.Context, metricName string, metricType string) (interface{}, error) {
 
 	switch metricType {
 	case "gauge":
-		var m GaugeMetric
-		row := d.conn.QueryRowContext(ctx, `SELECT gauge FROM gauge_metrics WHERE name = $1`, metricName)
-		if err := row.Scan(&m.value); err != nil {
+		m := GaugeMetric{Name: metricName}
+		g, err := common.Retry(ctx, d.client.retryDelays, d.client.GetGauge, &m)
+		if err != nil {
 			return nil, err
 		}
-		return m.value, nil
+		return g.Value, nil
 	case "counter":
-		var m CounterMetric
-		row := d.conn.QueryRowContext(ctx, `SELECT counter FROM counter_metrics WHERE name = $1`, metricName)
-		if err := row.Scan(&m.value); err != nil {
+		m := CounterMetric{Name: metricName}
+		c, err := common.Retry(ctx, d.client.retryDelays, d.client.GetCounter, &m)
+		if err != nil {
 			return nil, err
 		}
-		return m.value, nil
+		return c.Value, nil
 	default:
 		return nil, errors.New("error: unknown metric type. only gauge and counter are available")
 	}
@@ -74,47 +78,24 @@ func (d *DBStorage) SetValue(ctx context.Context, metricName string, metricType 
 
 	switch metricType {
 	case "gauge":
-		var m GaugeMetric
-		row := d.conn.QueryRowContext(ctx, `SELECT name, gauge FROM gauge_metrics WHERE name = $1`, metricName)
-		if err := row.Scan(&m.name, &m.value); err != nil {
-			if _, err := d.conn.ExecContext(ctx, `
-			   INSERT INTO gauge_metrics
-			   (name, gauge)
-			   VALUES
-			   ($1, $2);
-			`, metricName, metricValue); err != nil {
-				return err
-			}
-		} else {
-			if _, err := d.conn.ExecContext(ctx, `
-				UPDATE gauge_metrics
-				SET gauge = $1
-				WHERE name = $2;
-			`, metricValue, m.name); err != nil {
-				return err
-			}
+		valueFloat, err := strconv.ParseFloat(metricValue, 64)
+		if err != nil {
+			return err
 		}
-
+		m := GaugeMetric{Name: metricName, Value: valueFloat}
+		_, err = common.Retry(ctx, d.client.retryDelays, d.client.SetGauge, &m)
+		if err != nil {
+			return err
+		}
 	case "counter":
-		var m CounterMetric
-		row := d.conn.QueryRowContext(ctx, `SELECT name, counter FROM counter_metrics WHERE name = $1`, metricName)
-		if err := row.Scan(&m.name, &m.value); err != nil {
-			if _, err := d.conn.ExecContext(ctx, `
-			   INSERT INTO counter_metrics
-			   (name, counter)
-			   VALUES
-			   ($1, $2);
-			`, metricName, metricValue); err != nil {
-				return err
-			}
-		} else {
-			if _, err := d.conn.ExecContext(ctx, `
-				UPDATE counter_metrics
-				SET counter = counter + $1
-				WHERE name = $2;
-			`, metricValue, m.name); err != nil {
-				return err
-			}
+		intValue, err := strconv.ParseInt(metricValue, 10, 64)
+		if err != nil {
+			return err
+		}
+		m := CounterMetric{Name: metricName, Value: intValue}
+		_, err = common.Retry(ctx, d.client.retryDelays, d.client.SetCounter, &m)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -157,69 +138,20 @@ func (d *DBStorage) GetAllValues(ctx context.Context) (s *StoreMetrics) {
 
 	s = &StoreMetrics{make([]GaugeMetric, 0), make([]CounterMetric, 0)}
 
-	gRows, err := d.conn.QueryContext(ctx, `
-	   SELECT
-	       g.name,
-	       g.gauge
-	   FROM gauge_metrics g`,
-	)
-
-	if err != nil {
-		logger.Log.Error("failed to download gauge metrics")
-	} else {
-		for gRows.Next() {
-			var m GaugeMetric
-			if err := gRows.Scan(&m.name, &m.value); err != nil {
-				logger.Log.Error("while reading from db error occured:", zap.Error(err))
-			}
-			s.Gauge = append(s.Gauge, m)
-		}
-	}
-	defer gRows.Close()
-
-	err = gRows.Err()
-	if err != nil {
-		logger.Log.Error("rows error occured: ", zap.Error(err))
-	}
-
-	cRows, err := d.conn.QueryContext(ctx, `
-		SELECT 
-		    c.name,
-		    c.counter
-		FROM counter_metrics c`,
-	)
-
-	if err != nil {
-		logger.Log.Error("failed to download gauge metrics")
-	} else {
-		for cRows.Next() {
-			var m CounterMetric
-			if err := cRows.Scan(&m.name, &m.value); err != nil {
-				logger.Log.Error("while reading from db error occured:", zap.Error(err))
-			}
-			s.Counter = append(s.Counter, m)
-		}
-	}
-	defer cRows.Close()
-
-	err = cRows.Err()
-	if err != nil {
-		logger.Log.Error("rows error occured: ", zap.Error(err))
-	}
-
+	common.Retry(ctx, d.client.retryDelays, d.client.GetAllMetrics, s)
 	return s
 }
 
 // NewDBStorage returns new database storage
-func NewDBStorage(conn *sql.DB, bootstrap bool) *DBStorage {
+func NewDBStorage(conn *sqlx.DB, bootstrap bool, retries uint, backoffFactor uint) *DBStorage {
 	db := &DBStorage{conn: conn}
 	if bootstrap {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 
 		if err := db.Bootstrap(ctx); err != nil {
-			if errors.As(err, &pgError) {
-				if pgError.Code == "25P02" {
+			if errors.As(err, &PGError) {
+				if PGError.Code == pgerrcode.InFailedSQLTransaction {
 					logger.Log.Debug("rollback in bootstrap occured!")
 				} else {
 					logger.Log.Error("db bootstrap failed", zap.Error(err))
@@ -227,7 +159,7 @@ func NewDBStorage(conn *sql.DB, bootstrap bool) *DBStorage {
 			}
 		}
 	}
-	return &DBStorage{conn: conn}
+	return &DBStorage{conn: conn, client: NewPGClient(conn, retries, backoffFactor)}
 }
 
 func (d *DBStorage) Save() error {

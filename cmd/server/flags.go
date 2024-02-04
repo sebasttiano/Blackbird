@@ -16,6 +16,8 @@ var (
 	flagStoreInterval   int
 	flagRestoreOnStart  bool
 	flagDatabaseDSN     string
+	retriesDB           uint = 1
+	backoffFactor       uint = 1
 )
 
 // parseFlags handles args of cli
