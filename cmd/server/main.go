@@ -43,15 +43,15 @@ func run() error {
 
 	storeSettings := &storage.StoreSettings{SaveFilePath: flagFileStoragePath, Retries: retriesDB, BackoffFactor: backoffFactor}
 
-	var conn *sqlx.DB
-	conn, err := sqlx.Connect("pgx", flagDatabaseDSN)
-	if err != nil {
-		logger.Log.Error("database openning failed", zap.Error(err))
-	}
-	defer conn.Close()
-	storeSettings.Conn = conn
-
 	if flagDatabaseDSN != "" {
+		var conn *sqlx.DB
+		conn, err := sqlx.Connect("pgx", flagDatabaseDSN)
+		if err != nil {
+			logger.Log.Error("database openning failed", zap.Error(err))
+			os.Exit(1)
+		}
+		defer conn.Close()
+		storeSettings.Conn = conn
 		storeSettings.DBSave = true
 	} else if flagFileStoragePath != "" {
 		storeSettings.FileSave = true

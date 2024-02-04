@@ -17,13 +17,13 @@ type StoreSettings struct {
 }
 
 type GaugeMetric struct {
-	Id    int64   `db:"id"`
+	ID    int64   `db:"id"`
 	Name  string  `db:"name"`
 	Value float64 `db:"gauge"`
 }
 
 type CounterMetric struct {
-	Id    int64  `db:"id"`
+	ID    int64  `db:"id"`
 	Name  string `db:"name"`
 	Value int64  `db:"counter"`
 }

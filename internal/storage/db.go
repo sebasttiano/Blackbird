@@ -7,7 +7,6 @@ import (
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
-	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
 	"go.uber.org/zap"
@@ -33,14 +32,14 @@ func (d *DBStorage) GetValue(ctx context.Context, metricName string, metricType 
 	switch metricType {
 	case "gauge":
 		m := GaugeMetric{Name: metricName}
-		g, err := common.Retry(ctx, d.client.retryDelays, d.client.GetGauge, &m)
+		g, err := Retry(ctx, d.client.retryDelays, d.client.GetGauge, &m)
 		if err != nil {
 			return nil, err
 		}
 		return g.Value, nil
 	case "counter":
 		m := CounterMetric{Name: metricName}
-		c, err := common.Retry(ctx, d.client.retryDelays, d.client.GetCounter, &m)
+		c, err := Retry(ctx, d.client.retryDelays, d.client.GetCounter, &m)
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +82,7 @@ func (d *DBStorage) SetValue(ctx context.Context, metricName string, metricType 
 			return err
 		}
 		m := GaugeMetric{Name: metricName, Value: valueFloat}
-		_, err = common.Retry(ctx, d.client.retryDelays, d.client.SetGauge, &m)
+		_, err = Retry(ctx, d.client.retryDelays, d.client.SetGauge, &m)
 		if err != nil {
 			return err
 		}
@@ -93,7 +92,7 @@ func (d *DBStorage) SetValue(ctx context.Context, metricName string, metricType 
 			return err
 		}
 		m := CounterMetric{Name: metricName, Value: intValue}
-		_, err = common.Retry(ctx, d.client.retryDelays, d.client.SetCounter, &m)
+		_, err = Retry(ctx, d.client.retryDelays, d.client.SetCounter, &m)
 		if err != nil {
 			return err
 		}
@@ -138,7 +137,7 @@ func (d *DBStorage) GetAllValues(ctx context.Context) (s *StoreMetrics) {
 
 	s = &StoreMetrics{make([]GaugeMetric, 0), make([]CounterMetric, 0)}
 
-	common.Retry(ctx, d.client.retryDelays, d.client.GetAllMetrics, s)
+	Retry(ctx, d.client.retryDelays, d.client.GetAllMetrics, s)
 	return s
 }
 

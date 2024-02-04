@@ -86,8 +86,9 @@ func (s *ServerViews) GetMetric(res http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Log.Error("couldn`t find requested metric. ", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusNotFound)
+	} else {
+		io.WriteString(res, fmt.Sprintf("%v\n", value))
 	}
-	io.WriteString(res, fmt.Sprintf("%v\n", value))
 }
 
 // GetMetricJSON gets metric from storage via interface method and sends in a model
@@ -172,6 +173,7 @@ func (s *ServerViews) UpdateMetricJSON(res http.ResponseWriter, req *http.Reques
 	}
 }
 
+// UpdateMetricsJSON handles batch with metrics
 func (s *ServerViews) UpdateMetricsJSON(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 
