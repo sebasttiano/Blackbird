@@ -186,7 +186,8 @@ func (d *DBStorage) Bootstrap(ctx context.Context) error {
         CREATE TABLE IF NOT EXISTS gauge_metrics (
             id serial PRIMARY KEY,
 			name varchar(128),
-            gauge double precision 
+            gauge double precision,
+	       	UNIQUE(name) 
         )
 	`); err != nil {
 		logger.Log.Error("failed to create gauge_metrics table", zap.Error(err))
@@ -198,7 +199,8 @@ func (d *DBStorage) Bootstrap(ctx context.Context) error {
 	   CREATE TABLE IF NOT EXISTS counter_metrics (
 	       id serial PRIMARY KEY,
 		   name varchar(128),
-	       counter bigint
+	       counter bigint,
+	       UNIQUE(name)
 	   )
 	`); err != nil {
 		logger.Log.Error("failed to create gauge_metrics table", zap.Error(err))

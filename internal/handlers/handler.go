@@ -63,7 +63,6 @@ func (s *ServerViews) InitRouter() chi.Router {
 func (s *ServerViews) MainHandle(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
-	req.WithContext(ctx)
 
 	res.Header().Set("Content-Type", "text/html")
 	data := s.Store.GetAllValues(ctx)
@@ -79,7 +78,6 @@ func (s *ServerViews) GetMetric(res http.ResponseWriter, req *http.Request) {
 
 	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
-	req.WithContext(ctx)
 
 	metricType := chi.URLParam(req, "metricType")
 	metricName := chi.URLParam(req, "metricName")
@@ -113,7 +111,6 @@ func (s *ServerViews) GetMetricJSON(res http.ResponseWriter, req *http.Request) 
 
 	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
-	req.WithContext(ctx)
 
 	if err := s.Store.GetModelValue(ctx, &metrics); err != nil {
 		logger.Log.Debug("couldn`t get model", zap.Error(err))
@@ -132,7 +129,6 @@ func (s *ServerViews) UpdateMetric(res http.ResponseWriter, req *http.Request) {
 
 	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
-	req.WithContext(ctx)
 
 	metricType := chi.URLParam(req, "metricType")
 	metricName := chi.URLParam(req, "metricName")
@@ -164,7 +160,6 @@ func (s *ServerViews) UpdateMetricJSON(res http.ResponseWriter, req *http.Reques
 
 	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
-	req.WithContext(ctx)
 
 	if err := s.Store.SetModelValue(ctx, []*models.Metrics{&metrics}); err != nil {
 		logger.Log.Error("couldn`t save metric. error: ", zap.Error(err))
@@ -195,7 +190,6 @@ func (s *ServerViews) UpdateMetricsJSON(res http.ResponseWriter, req *http.Reque
 
 	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
-	req.WithContext(ctx)
 
 	if err := s.Store.SetModelValue(ctx, metrics); err != nil {
 		logger.Log.Error("couldn`t save metric. error: ", zap.Error(err))
@@ -213,7 +207,6 @@ func (s *ServerViews) UpdateMetricsJSON(res http.ResponseWriter, req *http.Reque
 func (s *ServerViews) PingDB(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 1*time.Second)
 	defer cancel()
-	req.WithContext(ctx)
 
 	if err := s.DB.PingContext(ctx); err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)

@@ -12,14 +12,12 @@ import (
 )
 
 type PGClientErrors struct {
-	ErrDBConnect error
-	ErrNoRows    error
+	ErrNoRows error
 }
 
 func NewPGClientErrors() PGClientErrors {
 	return PGClientErrors{
-		ErrDBConnect: errors.New("pg client couldn`t connect to server"),
-		ErrNoRows:    sql.ErrNoRows,
+		ErrNoRows: sql.ErrNoRows,
 	}
 }
 
@@ -76,27 +74,19 @@ func (p *PGClient) GetCounter(ctx context.Context, metric *CounterMetric) (*Coun
 // SetGauge method inserts or updates rows in gauge_metrics table
 func (p *PGClient) SetGauge(ctx context.Context, metric *GaugeMetric) (*GaugeMetric, error) {
 
-	newValue := metric.Value
-	metric, err := p.GetGauge(ctx, metric)
-	if err != nil {
-		if !errors.Is(err, p.Errors.ErrNoRows) {
-			return nil, err
-		}
-	}
 	tx, err := p.conn.Beginx()
 	if err != nil {
 		return nil, err
 	}
-	if metric.ID == 0 {
-		sqlInsert := `INSERT INTO gauge_metrics (name, gauge) VALUES ($1, $2);`
-		if _, err := tx.ExecContext(ctx, sqlInsert, metric.Name, newValue); err != nil {
-			return nil, err
-		}
-	} else {
-		sqlUpdate := `UPDATE gauge_metrics SET gauge = $1 WHERE id = $2;`
-		if _, err := tx.ExecContext(ctx, sqlUpdate, newValue, metric.ID); err != nil {
-			return nil, err
-		}
+
+	sqlInsert := `INSERT INTO gauge_metrics (name, gauge)
+                      VALUES ($1, $2)
+                      ON CONFLICT (name) DO UPDATE
+                      SET gauge = excluded.gauge;`
+
+	if _, err := tx.ExecContext(ctx, sqlInsert, metric.Name, metric.Value); err != nil {
+		tx.Rollback()
+		return nil, err
 	}
 	tx.Commit()
 	return metric, err
@@ -105,28 +95,19 @@ func (p *PGClient) SetGauge(ctx context.Context, metric *GaugeMetric) (*GaugeMet
 // SetCounter method inserts or updates rows in counter_metrics table
 func (p *PGClient) SetCounter(ctx context.Context, metric *CounterMetric) (*CounterMetric, error) {
 
-	delta := metric.Value
-	metric, err := p.GetCounter(ctx, metric)
-	if err != nil {
-		if !errors.Is(err, p.Errors.ErrNoRows) {
-			return nil, err
-		}
-	}
 	tx, err := p.conn.Beginx()
 	if err != nil {
 		return nil, err
 	}
 
-	if metric.ID == 0 {
-		sqlInsert := `INSERT INTO counter_metrics (name, counter) VALUES ($1, $2);`
-		if _, err := tx.ExecContext(ctx, sqlInsert, metric.Name, delta); err != nil {
-			return nil, err
-		}
-	} else {
-		sqlUpdate := `UPDATE counter_metrics SET counter = counter + $1 WHERE id = $2;`
-		if _, err := tx.ExecContext(ctx, sqlUpdate, delta, metric.ID); err != nil {
-			return nil, err
-		}
+	sqlInsert := `INSERT INTO counter_metrics (name, counter)
+					  VALUES ($1, $2)
+                      ON CONFLICT (name) DO UPDATE 
+					  SET counter = counter_metrics.counter + excluded.counter;`
+
+	if _, err := tx.ExecContext(ctx, sqlInsert, metric.Name, metric.Value); err != nil {
+		tx.Rollback()
+		return nil, err
 	}
 	tx.Commit()
 	return metric, err
