@@ -25,14 +25,14 @@ type HTTPClient struct {
 	url          string
 	client       *http.Client
 	retries      int
-	retriesIn    []int
+	retriesIn    []uint
 	ClientErrors HTTPClientErrors
 }
 
-func NewHTTPClient(url string, retries int, backoffFactor int) HTTPClient {
-	var ri []int
+func NewHTTPClient(url string, retries int, backoffFactor uint) HTTPClient {
+	var ri []uint
 	for i := 1; i <= retries; i++ {
-		ri = append(ri, 2*i-backoffFactor)
+		ri = append(ri, backoffFactor*uint(i)-1)
 	}
 	return HTTPClient{url: url, client: &http.Client{}, retriesIn: ri, retries: retries, ClientErrors: NewHTTPClientErrors()}
 }

@@ -61,7 +61,9 @@ func run() error {
 		storeSettings.SyncSave = true
 	}
 
-	currentApp.Initialize(storeSettings)
+	if err := currentApp.Initialize(storeSettings); err != nil {
+		logger.Log.Error("failed to init app", zap.Error(err))
+	}
 
 	if flagStoreInterval > 0 {
 		ticker := time.NewTicker(time.Second * time.Duration(flagStoreInterval))

@@ -24,7 +24,7 @@ type DBErrors struct {
 	ErrConnect error
 }
 
-var PGError *pgconn.PgError
+var pgError *pgconn.PgError
 
 // GetValue returns either gauge or counter metrics
 func (d *DBStorage) GetValue(ctx context.Context, metricName string, metricType string) (interface{}, error) {
@@ -142,23 +142,24 @@ func (d *DBStorage) GetAllValues(ctx context.Context) (s *StoreMetrics) {
 }
 
 // NewDBStorage returns new database storage
-func NewDBStorage(conn *sqlx.DB, bootstrap bool, retries uint, backoffFactor uint) *DBStorage {
+func NewDBStorage(conn *sqlx.DB, bootstrap bool, retries uint, backoffFactor uint) (*DBStorage, error) {
 	db := &DBStorage{conn: conn}
 	if bootstrap {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 
 		if err := db.Bootstrap(ctx); err != nil {
-			if errors.As(err, &PGError) {
-				if PGError.Code == pgerrcode.InFailedSQLTransaction {
+			if errors.As(err, &pgError) {
+				if pgError.Code == pgerrcode.InFailedSQLTransaction {
 					logger.Log.Debug("rollback in bootstrap occured!")
 				} else {
 					logger.Log.Error("db bootstrap failed", zap.Error(err))
 				}
 			}
+			return nil, err
 		}
 	}
-	return &DBStorage{conn: conn, client: NewPGClient(conn, retries, backoffFactor)}
+	return &DBStorage{conn: conn, client: NewPGClient(conn, retries, backoffFactor)}, nil
 }
 
 func (d *DBStorage) Save() error {

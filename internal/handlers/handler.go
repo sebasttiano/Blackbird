@@ -61,8 +61,9 @@ func (s *ServerViews) InitRouter() chi.Router {
 
 // MainHandle render html with all available metrics at the moment
 func (s *ServerViews) MainHandle(res http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
+	req.WithContext(ctx)
 
 	res.Header().Set("Content-Type", "text/html")
 	data := s.Store.GetAllValues(ctx)
@@ -76,8 +77,9 @@ func (s *ServerViews) MainHandle(res http.ResponseWriter, req *http.Request) {
 // response
 func (s *ServerViews) GetMetric(res http.ResponseWriter, req *http.Request) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
+	req.WithContext(ctx)
 
 	metricType := chi.URLParam(req, "metricType")
 	metricName := chi.URLParam(req, "metricName")
@@ -105,12 +107,13 @@ func (s *ServerViews) GetMetricJSON(res http.ResponseWriter, req *http.Request) 
 	var metrics models.Metrics
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&metrics); err != nil {
-		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		logger.Log.Error("cannot decode request JSON body", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
+	req.WithContext(ctx)
 
 	if err := s.Store.GetModelValue(ctx, &metrics); err != nil {
 		logger.Log.Debug("couldn`t get model", zap.Error(err))
@@ -119,7 +122,7 @@ func (s *ServerViews) GetMetricJSON(res http.ResponseWriter, req *http.Request) 
 
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(metrics); err != nil {
-		logger.Log.Debug("error encoding response", zap.Error(err))
+		logger.Log.Error("error encoding response", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -127,8 +130,9 @@ func (s *ServerViews) GetMetricJSON(res http.ResponseWriter, req *http.Request) 
 // UpdateMetric handles update metrics request
 func (s *ServerViews) UpdateMetric(res http.ResponseWriter, req *http.Request) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
+	req.WithContext(ctx)
 
 	metricType := chi.URLParam(req, "metricType")
 	metricName := chi.URLParam(req, "metricName")
@@ -154,21 +158,22 @@ func (s *ServerViews) UpdateMetricJSON(res http.ResponseWriter, req *http.Reques
 	var metrics models.Metrics
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&metrics); err != nil {
-		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		logger.Log.Error("cannot decode request JSON body", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
+	req.WithContext(ctx)
 
 	if err := s.Store.SetModelValue(ctx, []*models.Metrics{&metrics}); err != nil {
-		logger.Log.Debug("couldn`t save metric. error: ", zap.Error(err))
+		logger.Log.Error("couldn`t save metric. error: ", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(metrics); err != nil {
-		logger.Log.Debug("error encoding response", zap.Error(err))
+		logger.Log.Error("error encoding response", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -184,29 +189,32 @@ func (s *ServerViews) UpdateMetricsJSON(res http.ResponseWriter, req *http.Reque
 	var metrics []*models.Metrics
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&metrics); err != nil {
-		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		logger.Log.Error("cannot decode request JSON body", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
+	req.WithContext(ctx)
 
 	if err := s.Store.SetModelValue(ctx, metrics); err != nil {
-		logger.Log.Debug("couldn`t save metric. error: ", zap.Error(err))
+		logger.Log.Error("couldn`t save metric. error: ", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(metrics); err != nil {
-		logger.Log.Debug("error encoding response", zap.Error(err))
+		logger.Log.Error("error encoding response", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 }
 
 // PingDB checks connection to database
 func (s *ServerViews) PingDB(res http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(req.Context(), 1*time.Second)
 	defer cancel()
+	req.WithContext(ctx)
+
 	if err := s.DB.PingContext(ctx); err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}

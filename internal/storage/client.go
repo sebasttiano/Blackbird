@@ -89,10 +89,14 @@ func (p *PGClient) SetGauge(ctx context.Context, metric *GaugeMetric) (*GaugeMet
 	}
 	if metric.ID == 0 {
 		sqlInsert := `INSERT INTO gauge_metrics (name, gauge) VALUES ($1, $2);`
-		tx.MustExecContext(ctx, sqlInsert, metric.Name, newValue)
+		if _, err := tx.ExecContext(ctx, sqlInsert, metric.Name, newValue); err != nil {
+			return nil, err
+		}
 	} else {
 		sqlUpdate := `UPDATE gauge_metrics SET gauge = $1 WHERE id = $2;`
-		tx.MustExecContext(ctx, sqlUpdate, newValue, metric.ID)
+		if _, err := tx.ExecContext(ctx, sqlUpdate, newValue, metric.ID); err != nil {
+			return nil, err
+		}
 	}
 	tx.Commit()
 	return metric, err
@@ -115,10 +119,14 @@ func (p *PGClient) SetCounter(ctx context.Context, metric *CounterMetric) (*Coun
 
 	if metric.ID == 0 {
 		sqlInsert := `INSERT INTO counter_metrics (name, counter) VALUES ($1, $2);`
-		tx.MustExecContext(ctx, sqlInsert, metric.Name, delta)
+		if _, err := tx.ExecContext(ctx, sqlInsert, metric.Name, delta); err != nil {
+			return nil, err
+		}
 	} else {
 		sqlUpdate := `UPDATE counter_metrics SET counter = counter + $1 WHERE id = $2;`
-		tx.MustExecContext(ctx, sqlUpdate, delta, metric.ID)
+		if _, err := tx.ExecContext(ctx, sqlUpdate, delta, metric.ID); err != nil {
+			return nil, err
+		}
 	}
 	tx.Commit()
 	return metric, err
@@ -150,6 +158,9 @@ type RetryError struct {
 	Err error
 }
 
+func NewRetryError(retries int, Err error) *RetryError {
+	return &RetryError{Err: fmt.Errorf("function failed after %d retries. last error was %w", retries, Err)}
+}
 func (re *RetryError) Error() string {
 	return fmt.Sprintf("%v", re.Err)
 }
@@ -175,7 +186,7 @@ func Retry[T any](ctx context.Context, retryDelays []uint, f func(context.Contex
 					logger.Log.Error(fmt.Sprintf("Request to server failed. retrying in %d seconds... Retries left %d\n", delay, retries), zap.Error(err))
 					time.Sleep(time.Duration(delay) * time.Second)
 					if retries == 0 {
-						return arg, &RetryError{Err: err}
+						return arg, NewRetryError(retries, err)
 					}
 				} else {
 					return arg, err
