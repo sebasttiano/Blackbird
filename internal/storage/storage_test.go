@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,10 +16,11 @@ func TestNewMemStorage(t *testing.T) {
 	}{
 		{
 			name:    "Create New MemStorage",
-			storage: *NewMemStorage(),
+			storage: *NewMemStorage(&StoreSettings{}),
 			want: MemStorage{
-				Gauge:   make(map[string]float64),
-				Counter: map[string]int64{}},
+				Gauge:    make(map[string]float64),
+				Counter:  map[string]int64{},
+				Settings: &StoreSettings{}},
 		},
 	}
 	for _, tt := range tests {
@@ -38,16 +40,17 @@ func TestNewMemStorage(t *testing.T) {
 		{name: "Check counter value #2", metricType: "counter", metricValue: "15", want: "25"},
 	}
 
-	var localStorage HandleMemStorage = &MemStorage{
-		Gauge:   make(map[string]float64),
-		Counter: make(map[string]int64),
+	var localStorage Store = &MemStorage{
+		Gauge:    make(map[string]float64),
+		Counter:  make(map[string]int64),
+		Settings: &StoreSettings{},
 	}
 
 	for _, tt := range testsValues {
 		t.Run(tt.name, func(t *testing.T) {
-			err := localStorage.SetValue("TestMetric", tt.metricType, tt.metricValue)
+			err := localStorage.SetValue(context.Background(), "TestMetric", tt.metricType, tt.metricValue)
 			require.NoErrorf(t, err, "error returned by SetValue method. params: type %s, value %s", tt.metricType, tt.metricValue)
-			valueBack, err := localStorage.GetValue("TestMetric", tt.metricType)
+			valueBack, err := localStorage.GetValue(context.Background(), "TestMetric", tt.metricType)
 			require.NoErrorf(t, err, "error returned by GetValue method. params: type %s", tt.metricValue)
 			assert.Equal(t, fmt.Sprintf("%v", tt.want), fmt.Sprintf("%v", valueBack), "returned value not equal to expected")
 		})

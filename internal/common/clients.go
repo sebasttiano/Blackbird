@@ -24,13 +24,17 @@ func NewHTTPClientErrors() HTTPClientErrors {
 type HTTPClient struct {
 	url          string
 	client       *http.Client
-	retryIn      int
 	retries      int
+	retriesIn    []uint
 	ClientErrors HTTPClientErrors
 }
 
-func NewHTTPClient(url string, retryIn int, retries int) HTTPClient {
-	return HTTPClient{url: url, client: &http.Client{}, retryIn: retryIn, retries: retries, ClientErrors: NewHTTPClientErrors()}
+func NewHTTPClient(url string, retries int, backoffFactor uint) HTTPClient {
+	var ri []uint
+	for i := 1; i <= retries; i++ {
+		ri = append(ri, backoffFactor*uint(i)-1)
+	}
+	return HTTPClient{url: url, client: &http.Client{}, retriesIn: ri, retries: retries, ClientErrors: NewHTTPClientErrors()}
 }
 
 // Post implements http post requests
@@ -46,13 +50,12 @@ func (c HTTPClient) Post(urlSuffix string, body io.Reader, headers map[string]st
 	}
 
 	var res *http.Response
-
-	for c.retries > 0 {
+	for _, delay := range c.retriesIn {
 		res, err = c.client.Do(r)
 		if err != nil {
 			c.retries -= 1
-			logger.Log.Error(fmt.Sprintf("Request to server failed. retrying in %d seconds... Retries left %d\n", c.retryIn, c.retries))
-			time.Sleep(time.Duration(c.retryIn) * time.Second)
+			logger.Log.Error(fmt.Sprintf("Request to server failed. retrying in %d seconds... Retries left %d\n", delay, c.retries))
+			time.Sleep(time.Duration(delay) * time.Second)
 			if c.retries == 0 {
 				return nil, c.ClientErrors.ErrConnect
 			}

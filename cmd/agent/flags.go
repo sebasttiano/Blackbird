@@ -11,8 +11,8 @@ var (
 	flagLogLevel           string
 	pollInterval           int64
 	reportInterval         int64
-	httpClientRetry        = 3
-	httpClientRetryTimeout = 3
+	httpClientRetry             = 3
+	httpClientRetryBackoff uint = 1
 )
 
 // parseFlags handles args of cli

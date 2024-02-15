@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
+	"github.com/sebasttiano/Blackbird.git/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http/httptest"
@@ -12,7 +13,8 @@ import (
 
 func TestGetMetrics(t *testing.T) {
 
-	router := handlers.GzipMiddleware(handlers.InitRouter())
+	views := handlers.NewServerViews(storage.NewMemStorage(&storage.StoreSettings{}))
+	router := handlers.GzipMiddleware(views.InitRouter())
 	server := httptest.NewServer(router)
 	defer server.Close()
 	serverURL := server.URL
@@ -29,7 +31,8 @@ func TestGetMetrics(t *testing.T) {
 
 func TestIterateStructFieldsAndSend(t *testing.T) {
 
-	router := handlers.GzipMiddleware(handlers.InitRouter())
+	views := handlers.NewServerViews(storage.NewMemStorage(&storage.StoreSettings{}))
+	router := handlers.GzipMiddleware(views.InitRouter())
 	server := httptest.NewServer(router)
 	defer server.Close()
 	serverURL := server.URL

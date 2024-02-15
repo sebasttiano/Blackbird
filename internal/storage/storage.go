@@ -1,38 +1,34 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
-	"github.com/sebasttiano/Blackbird.git/templates"
 	"go.uber.org/zap"
 	"os"
 	"strconv"
 )
 
-var SrvFacility = NewServerFacility()
-
-func GetCurrentServerSettings() *ServerSettings {
-	return &SrvFacility.Settings
-}
-
 // MemStorage Keeps Gauge and Counter metrics
 type MemStorage struct {
-	Gauge   map[string]float64
-	Counter map[string]int64
+	Gauge    map[string]float64
+	Counter  map[string]int64
+	Settings *StoreSettings
 }
 
 // NewMemStorage — constructor of the type MemStorage.
-func NewMemStorage() *MemStorage {
+func NewMemStorage(storeSettings *StoreSettings) *MemStorage {
 	return &MemStorage{
-		Gauge:   make(map[string]float64),
-		Counter: make(map[string]int64),
+		Gauge:    make(map[string]float64),
+		Counter:  make(map[string]int64),
+		Settings: storeSettings,
 	}
 }
 
 // GetValue returns either gauge or counter metrics
-func (g *MemStorage) GetValue(metricName string, metricType string) (interface{}, error) {
+func (g *MemStorage) GetValue(ctx context.Context, metricName string, metricType string) (interface{}, error) {
 	switch metricType {
 	case "gauge":
 		value, ok := g.Gauge[metricName]
@@ -52,7 +48,7 @@ func (g *MemStorage) GetValue(metricName string, metricType string) (interface{}
 }
 
 // GetModelValue returns either gauge or counter metrics
-func (g *MemStorage) GetModelValue(metric *models.Metrics) error {
+func (g *MemStorage) GetModelValue(ctx context.Context, metric *models.Metrics) error {
 
 	if metric.ID == "" {
 		return errors.New("name of the metric is required")
@@ -79,7 +75,7 @@ func (g *MemStorage) GetModelValue(metric *models.Metrics) error {
 }
 
 // SetValue saves either gauge or counter metrics
-func (g *MemStorage) SetValue(metricName string, metricType string, metricValue string) error {
+func (g *MemStorage) SetValue(ctx context.Context, metricName string, metricType string, metricValue string) error {
 	switch metricType {
 	case "gauge":
 		valueFloat, err := strconv.ParseFloat(metricValue, 64)
@@ -97,8 +93,8 @@ func (g *MemStorage) SetValue(metricName string, metricType string, metricValue 
 		return errors.New("error: unknown metric type. Only gauge and counter are available")
 	}
 
-	if SrvFacility.Settings.SyncSave {
-		if err := SrvFacility.LocalStorage.SaveToFile(SrvFacility.Settings.SaveFilePath); err != nil {
+	if g.Settings.SyncSave {
+		if err := g.Save(); err != nil {
 			logger.Log.Error("couldn`t save to the file", zap.Error(err))
 			return err
 		}
@@ -107,32 +103,33 @@ func (g *MemStorage) SetValue(metricName string, metricType string, metricValue 
 }
 
 // SetModelValue saves either gauge or counter metrics from model
-func (g *MemStorage) SetModelValue(metric *models.Metrics) error {
+func (g *MemStorage) SetModelValue(ctx context.Context, metrics []*models.Metrics) error {
 
-	if metric.ID == "" {
-		return errors.New("name of the metric is required")
-	}
-
-	switch metric.MType {
-	case "gauge":
-		if metric.Value == nil {
-			return errors.New("value of the gauge is required")
+	for _, metric := range metrics {
+		if metric.ID == "" {
+			return errors.New("name of the metric is required")
 		}
 
-		g.Gauge[metric.ID] = *metric.Value
-	case "counter":
+		switch metric.MType {
+		case "gauge":
+			if metric.Value == nil {
+				return errors.New("value of the gauge is required")
+			}
 
-		if metric.Delta == nil {
-			return errors.New("value of the gauge is required")
+			g.Gauge[metric.ID] = *metric.Value
+		case "counter":
+
+			if metric.Delta == nil {
+				return errors.New("value of the gauge is required")
+			}
+			g.Counter[metric.ID] += *metric.Delta
+			*metric.Delta = g.Counter[metric.ID]
+		default:
+			return errors.New("error: unknown metric type. Only gauge and counter are available")
 		}
-		g.Counter[metric.ID] += *metric.Delta
-		*metric.Delta = g.Counter[metric.ID]
-	default:
-		return errors.New("error: unknown metric type. Only gauge and counter are available")
 	}
-
-	if SrvFacility.Settings.SyncSave {
-		if err := SrvFacility.LocalStorage.SaveToFile(SrvFacility.Settings.SaveFilePath); err != nil {
+	if g.Settings.SyncSave {
+		if err := g.Save(); err != nil {
 			logger.Log.Error("couldn`t save to the file", zap.Error(err))
 			return err
 		}
@@ -140,16 +137,22 @@ func (g *MemStorage) SetModelValue(metric *models.Metrics) error {
 	return nil
 }
 
-func (g *MemStorage) SaveToFile(file string) error {
+func (g *MemStorage) Save() error {
+	if g.Settings.SaveFilePath == "" {
+		return errors.New("can`t save to file. no file path specify")
+	}
 	data, err := json.MarshalIndent(g, "", "   ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(file, data, 0666)
+	return os.WriteFile(g.Settings.SaveFilePath, data, 0666)
 }
 
-func (g *MemStorage) RestoreFromFile(file string) error {
-	data, err := os.ReadFile(file)
+func (g *MemStorage) Restore() error {
+	if g.Settings.SaveFilePath == "" {
+		return errors.New("can`t restore from file. no file path specify")
+	}
+	data, err := os.ReadFile(g.Settings.SaveFilePath)
 	if err != nil {
 		return err
 	}
@@ -159,34 +162,16 @@ func (g *MemStorage) RestoreFromFile(file string) error {
 	return nil
 }
 
-type HandleMemStorage interface {
-	GetValue(metricName string, metricType string) (interface{}, error)
-	GetModelValue(metrics *models.Metrics) error
-	SetValue(metricName string, metricType string, metricValue string) error
-	SetModelValue(metric *models.Metrics) error
-	SaveToFile(file string) error
-	RestoreFromFile(file string) error
-}
+func (g *MemStorage) GetAllValues(ctx context.Context) *StoreMetrics {
 
-type ServerFacility struct {
-	LocalStorage  HandleMemStorage
-	HTMLTemplates templates.HTMLTemplates
-	Settings      ServerSettings
-}
+	storeMetrics := &StoreMetrics{}
 
-func NewServerFacility() ServerFacility {
-	return ServerFacility{
-		LocalStorage:  NewMemStorage(),
-		HTMLTemplates: templates.ParseTemplates(),
-		Settings: ServerSettings{
-			SyncSave:   false,
-			SaveToFile: true,
-		},
+	for key, value := range g.Gauge {
+		storeMetrics.Gauge = append(storeMetrics.Gauge, GaugeMetric{Name: key, Value: value})
 	}
-}
 
-type ServerSettings struct {
-	SyncSave     bool
-	SaveToFile   bool
-	SaveFilePath string
+	for key, value := range g.Counter {
+		storeMetrics.Counter = append(storeMetrics.Counter, CounterMetric{Name: key, Value: value})
+	}
+	return storeMetrics
 }
