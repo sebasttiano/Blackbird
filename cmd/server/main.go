@@ -4,7 +4,6 @@ import (
 	"fmt"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
-	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/storage"
 	"go.uber.org/zap"
@@ -61,7 +60,7 @@ func run() error {
 		storeSettings.SyncSave = true
 	}
 
-	if err := currentApp.Initialize(storeSettings); err != nil {
+	if err := currentApp.Initialize(storeSettings, flagSecretKey); err != nil {
 		logger.Log.Error("failed to init app", zap.Error(err))
 	}
 
@@ -78,5 +77,6 @@ func run() error {
 	}
 
 	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
-	return http.ListenAndServe(flagRunAddr, handlers.WithLogging(handlers.GzipMiddleware(currentApp.views.InitRouter())))
+	return http.ListenAndServe(flagRunAddr, currentApp.views.InitRouter())
+
 }

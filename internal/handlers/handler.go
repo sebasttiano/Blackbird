@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi/v5"
@@ -21,6 +24,7 @@ type ServerViews struct {
 	Store     storage.Store
 	templates templates.HTMLTemplates
 	DB        *sqlx.DB
+	SignKey   string
 }
 
 func NewServerViews(store storage.Store) ServerViews {
@@ -32,6 +36,7 @@ func (s *ServerViews) InitRouter() chi.Router {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RealIP)
+	r.Use(WithLogging, CheckSign(s.SignKey), GzipMiddleware)
 
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", s.MainHandle)
@@ -87,6 +92,11 @@ func (s *ServerViews) GetMetric(res http.ResponseWriter, req *http.Request) {
 		logger.Log.Error("couldn`t find requested metric. ", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusNotFound)
 	} else {
+
+		if s.SignKey != "" {
+			res.Header().Add("HashSHA256", sign(value, s.SignKey))
+		}
+
 		io.WriteString(res, fmt.Sprintf("%v\n", value))
 	}
 }
@@ -115,6 +125,10 @@ func (s *ServerViews) GetMetricJSON(res http.ResponseWriter, req *http.Request) 
 	if err := s.Store.GetModelValue(ctx, &metrics); err != nil {
 		logger.Log.Debug("couldn`t get model", zap.Error(err))
 		http.Error(res, "couldn`t get model", http.StatusNotFound)
+	}
+
+	if s.SignKey != "" {
+		res.Header().Add("HashSHA256", sign(metrics, s.SignKey))
 	}
 
 	enc := json.NewEncoder(res)
@@ -211,4 +225,16 @@ func (s *ServerViews) PingDB(res http.ResponseWriter, req *http.Request) {
 	if err := s.DB.PingContext(ctx); err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// sign any string like object with hmac signature
+func sign(value any, key string) string {
+	b, err := json.Marshal(value)
+	if err != nil {
+		return ""
+	}
+	h := hmac.New(sha256.New, []byte(key))
+	h.Write(b)
+	dst := h.Sum(nil)
+	return hex.EncodeToString(dst)
 }

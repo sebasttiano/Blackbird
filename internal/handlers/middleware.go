@@ -1,9 +1,14 @@
 package handlers
 
 import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"go.uber.org/zap"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -80,32 +85,76 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 // GzipMiddleware handles compressed with gzip requests and responses
 func GzipMiddleware(next http.Handler) http.Handler {
 
-	gzipFn := func(w http.ResponseWriter, r *http.Request) {
+	gzipFn := func(res http.ResponseWriter, req *http.Request) {
 
-		ow := w
+		ow := res
 
-		acceptEncoding := r.Header.Get("Accept-Encoding")
+		acceptEncoding := req.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
 		if supportsGzip {
-			cw := common.NewGZIPWriter(w)
+			cw := common.NewGZIPWriter(res)
 			ow = cw
 			defer cw.Close()
 		}
 
-		contentEncoding := r.Header.Get("Content-Encoding")
+		contentEncoding := req.Header.Get("Content-Encoding")
 		sendsGzip := strings.Contains(contentEncoding, "gzip")
 		if sendsGzip {
-			cr, err := common.NewZIPReader(r.Body)
+			cr, err := common.NewZIPReader(req.Body)
 			if err != nil {
 				logger.Log.Error("couldn`t decompress request")
-				w.WriteHeader(http.StatusInternalServerError)
+				res.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			r.Body = cr
+			req.Body = cr
 			defer cr.Close()
 		}
 
-		next.ServeHTTP(ow, r)
+		next.ServeHTTP(ow, req)
 	}
 	return http.HandlerFunc(gzipFn)
+}
+
+func CheckSign(key string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+			hashSHA256 := req.Header.Get("HashSHA256")
+			if hashSHA256 == "" {
+				next.ServeHTTP(res, req)
+				return
+			}
+
+			h := hmac.New(sha256.New, []byte(key))
+
+			b, err := io.ReadAll(req.Body)
+			if err != nil {
+				logger.Log.Error("failed to read request body")
+				res.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			if _, err := h.Write(b); err != nil {
+				logger.Log.Error("failed to write bytes to hmac")
+				res.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			sign := h.Sum(nil)
+			headerSign, err := hex.DecodeString(hashSHA256)
+			if err != nil {
+				logger.Log.Error("failed to decode hashSHA256 header hash")
+				res.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			if !hmac.Equal(sign, headerSign) {
+				logger.Log.Error("error: signature validation failed")
+				res.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			req.Body = io.NopCloser(bytes.NewReader(b))
+			next.ServeHTTP(res, req)
+		})
+	}
 }
