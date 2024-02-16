@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/sebasttiano/Blackbird.git/internal/common"
@@ -59,7 +62,7 @@ func run() error {
 	}
 	logger.Log.Info(fmt.Sprintf("Running agent with poll interval %d and report interval %d\n", pollInterval, reportInterval))
 	logger.Log.Info(fmt.Sprintf("Metric storage server address is set to %s\n", serverIPAddr))
-	mh := NewMetricHandler(pollInterval, reportInterval, 600, "http://"+serverIPAddr)
+	mh := NewMetricHandler(pollInterval, reportInterval, 600, "http://"+serverIPAddr, flagSecretKey)
 	if err := mh.GetMetrics(); err != nil {
 		logger.Log.Error("error in getmetrics occured", zap.Error(err))
 	}
@@ -75,9 +78,10 @@ type MetricHandler struct {
 	client    common.HTTPClient
 	rtm       runtime.MemStats
 	metrics   MetricsSet
+	signKey   string
 }
 
-func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, serverAddr string) MetricHandler {
+func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, serverAddr string, signKey string) MetricHandler {
 	return MetricHandler{
 		getInterval:  time.Duration(pollInterval) * time.Second,
 		sendInterval: time.Duration(reportInterval) * time.Second,
@@ -85,6 +89,7 @@ func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, serverA
 		sendCounter:  time.Duration(1) * time.Second,
 		stopLimit:    stopLimit,
 		client:       common.NewHTTPClient(serverAddr, httpClientRetry, httpClientRetryBackoff),
+		signKey:      signKey,
 	}
 }
 
@@ -133,7 +138,7 @@ func (m *MetricHandler) GetMetrics() error {
 		}
 
 		if m.sendCounter == m.sendInterval {
-			if err := IterateStructFieldsAndSend(m.metrics, m.client); err != nil {
+			if err := m.IterateStructFieldsAndSend(); err != nil {
 				logger.Log.Error("failed to send metrics to server. error:", zap.Error(err))
 				continue
 			}
@@ -147,12 +152,12 @@ func (m *MetricHandler) GetMetrics() error {
 }
 
 // IterateStructFieldsAndSend prepares url with values and make post request to server
-func IterateStructFieldsAndSend(input interface{}, client common.HTTPClient) error {
+func (m *MetricHandler) IterateStructFieldsAndSend() error {
 
 	var metrics models.Metrics
 	var metricsBatch []models.Metrics
 
-	value := reflect.ValueOf(input)
+	value := reflect.ValueOf(m.metrics)
 	numFields := value.NumField()
 	structType := value.Type()
 
@@ -189,8 +194,19 @@ func IterateStructFieldsAndSend(input interface{}, client common.HTTPClient) err
 			logger.Log.Error("failed to compress data to gzip", zap.Error(err))
 		}
 
-		res, err := client.Post("/updates/", compressedData, map[string]string{"Content-Type": "application/json", "Content-Encoding": "gzip"})
+		headers := map[string]string{"Content-Type": "application/json", "Content-Encoding": "gzip"}
+		if m.signKey != "" {
+			data := *compressedData
+			h := hmac.New(sha256.New, []byte(m.signKey))
+			if _, err := h.Write(data.Bytes()); err != nil {
+				return err
+			}
+			dst := h.Sum(nil)
+			logger.Log.Info("create hmac signature")
+			headers["HashSHA256"] = hex.EncodeToString(dst)
+		}
 
+		res, err := m.client.Post("/updates/", compressedData, headers)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("couldn`t send metrics batch of length %d", len(metricsBatch)), zap.Error(err))
 			return err
