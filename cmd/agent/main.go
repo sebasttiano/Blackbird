@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -9,10 +10,15 @@ import (
 	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
+	"github.com/shirou/gopsutil/v3/mem"
 	"go.uber.org/zap"
 	"math/rand"
+	"os/signal"
 	"reflect"
 	"runtime"
+	"sync"
+	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -44,12 +50,16 @@ type MetricsSet struct {
 	StackInuse,
 	StackSys,
 	Sys,
+	TotalMemory,
+	FreeMemory,
+	CPUUtilization,
 	RandomValue float64
 	PollCount int64
 }
 
 func main() {
 	parseFlags()
+
 	if err := run(); err != nil {
 		logger.Log.Error("While executing agent, error occurred", zap.Error(err))
 	}
@@ -62,48 +72,61 @@ func run() error {
 	}
 	logger.Log.Info(fmt.Sprintf("Running agent with poll interval %d and report interval %d\n", pollInterval, reportInterval))
 	logger.Log.Info(fmt.Sprintf("Metric storage server address is set to %s\n", serverIPAddr))
-	mh := NewMetricHandler(pollInterval, reportInterval, 600, "http://"+serverIPAddr, flagSecretKey)
-	if err := mh.GetMetrics(); err != nil {
-		logger.Log.Error("error in getmetrics occured", zap.Error(err))
+	mh := NewMetricHandler(pollInterval, reportInterval, "http://"+serverIPAddr, flagSecretKey)
+
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGKILL, syscall.SIGTERM, syscall.SIGINT)
+	defer cancel()
+	//var wg sync.WaitGroup
+
+	mh.wg.Add(2)
+	go mh.GetMetrics(ctx)
+	go mh.GetGopsutilMetrics(ctx)
+
+	for i := 0; i < int(flagRateLimit); i++ {
+		mh.wg.Add(1)
+		go mh.IterateStructFieldsAndSend(ctx)
 	}
+	mh.wg.Wait()
 	return nil
 }
 
 type MetricHandler struct {
 	getInterval,
 	sendInterval,
-	getCounter,
 	sendCounter time.Duration
-	stopLimit int
-	client    common.HTTPClient
-	rtm       runtime.MemStats
-	metrics   MetricsSet
-	signKey   string
+	getCounter int64
+	client     common.HTTPClient
+	rtm        runtime.MemStats
+	metrics    MetricsSet
+	signKey    string
+	wg         sync.WaitGroup
 }
 
-func NewMetricHandler(pollInterval, reportInterval int64, stopLimit int, serverAddr string, signKey string) MetricHandler {
+func NewMetricHandler(pollInterval, reportInterval int64, serverAddr string, signKey string) MetricHandler {
+	getCounter := new(int64)
 	return MetricHandler{
 		getInterval:  time.Duration(pollInterval) * time.Second,
 		sendInterval: time.Duration(reportInterval) * time.Second,
-		getCounter:   time.Duration(1) * time.Second,
+		getCounter:   *getCounter,
 		sendCounter:  time.Duration(1) * time.Second,
-		stopLimit:    stopLimit,
 		client:       common.NewHTTPClient(serverAddr, httpClientRetry, httpClientRetryBackoff),
 		signKey:      signKey,
 	}
 }
 
-func (m *MetricHandler) GetMetrics() error {
+// GetMetrics collect runtime metrics
+func (m *MetricHandler) GetMetrics(ctx context.Context) {
 
-	m.metrics.PollCount = 0
+	//m.metrics.PollCount = 0
+	tick := time.NewTicker(m.getInterval)
 
-	for i := 0; m.stopLimit > i; i++ { // TODO make infinite when stoplimit == 0
-
-		time.Sleep(1 * time.Second)
-
-		if m.getCounter == m.getInterval {
+	for {
+		select {
+		case <-tick.C:
+			atomic.AddInt64(&m.getCounter, 1)
 			runtime.ReadMemStats(&m.rtm)
 
+			logger.Log.Info("collect memstats successfully")
 			m.metrics.Alloc = float64(m.rtm.Alloc)
 			m.metrics.TotalAlloc = float64(m.rtm.TotalAlloc)
 			m.metrics.BuckHashSys = float64(m.rtm.BuckHashSys)
@@ -131,91 +154,117 @@ func (m *MetricHandler) GetMetrics() error {
 			m.metrics.StackInuse = float64(m.rtm.StackInuse)
 			m.metrics.StackSys = float64(m.rtm.StackSys)
 			m.metrics.Sys = float64(m.rtm.Sys)
-			m.metrics.PollCount += 1
+			m.metrics.PollCount = m.getCounter
 			m.metrics.RandomValue = rand.Float64()
-
-			m.getCounter = 0 * time.Second
+		case <-ctx.Done():
+			tick.Stop()
+			m.wg.Done()
+			return
 		}
-
-		if m.sendCounter == m.sendInterval {
-			if err := m.IterateStructFieldsAndSend(); err != nil {
-				logger.Log.Error("failed to send metrics to server. error:", zap.Error(err))
-				continue
-			}
-			m.sendCounter = 0 * time.Second
-		}
-
-		m.getCounter += 1 * time.Second
-		m.sendCounter += 1 * time.Second
 	}
-	return nil
+
+}
+
+// GetGopsutilMetrics collect gopsutil metrics
+func (m *MetricHandler) GetGopsutilMetrics(ctx context.Context) {
+
+	tick := time.NewTicker(m.getInterval)
+
+	for {
+		select {
+		case <-tick.C:
+			stats, err := mem.VirtualMemory()
+			if err != nil {
+				logger.Log.Error("failed to collect virtual memory stats", zap.Error(err))
+			}
+			logger.Log.Info("collect virtual memory stats successfully")
+			m.metrics.TotalMemory = float64(stats.Total)
+			m.metrics.FreeMemory = float64(stats.Total)
+			m.metrics.CPUUtilization = stats.UsedPercent
+		case <-ctx.Done():
+			tick.Stop()
+			m.wg.Done()
+			return
+		}
+	}
 }
 
 // IterateStructFieldsAndSend prepares url with values and make post request to server
-func (m *MetricHandler) IterateStructFieldsAndSend() error {
+func (m *MetricHandler) IterateStructFieldsAndSend(ctx context.Context) error {
 
-	var metrics models.Metrics
-	var metricsBatch []models.Metrics
+	tick := time.NewTicker(m.sendInterval)
 
-	value := reflect.ValueOf(m.metrics)
-	numFields := value.NumField()
-	structType := value.Type()
+	for {
+		select {
+		case <-tick.C:
+			var metrics models.Metrics
+			var metricsBatch []models.Metrics
 
-	for i := 0; i < numFields; i++ {
-		field := structType.Field(i)
-		fieldValue := value.Field(i)
-		metrics.ID = field.Name
+			value := reflect.ValueOf(m.metrics)
+			numFields := value.NumField()
+			structType := value.Type()
 
-		if fieldValue.CanInt() {
-			counterVal := fieldValue.Int()
-			metrics.Delta = &counterVal
-			metrics.MType = "counter"
+			for i := 0; i < numFields; i++ {
+				field := structType.Field(i)
+				fieldValue := value.Field(i)
+				metrics.ID = field.Name
 
-		} else {
-			gaugeVal := fieldValue.Float()
-			metrics.Value = &gaugeVal
-			metrics.MType = "gauge"
-		}
+				if fieldValue.CanInt() {
+					counterVal := fieldValue.Int()
+					metrics.Delta = &counterVal
+					metrics.MType = "counter"
 
-		metricsBatch = append(metricsBatch, metrics)
-	}
+				} else {
+					gaugeVal := fieldValue.Float()
+					metrics.Value = &gaugeVal
+					metrics.MType = "gauge"
+				}
 
-	if len(metricsBatch) > 0 {
-
-		// Make an HTTP post request
-		reqBody, err := json.Marshal(metricsBatch)
-		if err != nil {
-			logger.Log.Error("couldn`t serialize to json", zap.Error(err))
-			return err
-		}
-
-		compressedData, err := common.Compress(reqBody)
-		if err != nil {
-			logger.Log.Error("failed to compress data to gzip", zap.Error(err))
-		}
-
-		headers := map[string]string{"Content-Type": "application/json", "Content-Encoding": "gzip"}
-		if m.signKey != "" {
-			data := *compressedData
-			h := hmac.New(sha256.New, []byte(m.signKey))
-			if _, err := h.Write(data.Bytes()); err != nil {
-				return err
+				metricsBatch = append(metricsBatch, metrics)
 			}
-			dst := h.Sum(nil)
-			logger.Log.Info("create hmac signature")
-			headers["HashSHA256"] = hex.EncodeToString(dst)
-		}
 
-		res, err := m.client.Post("/updates/", compressedData, headers)
-		if err != nil {
-			logger.Log.Error(fmt.Sprintf("couldn`t send metrics batch of length %d", len(metricsBatch)), zap.Error(err))
-			return err
-		}
-		res.Body.Close()
+			if len(metricsBatch) > 0 {
 
-		if res.StatusCode != 200 {
-			return fmt.Errorf("error: server return code %d, while sending metric batch", res.StatusCode)
+				// Make an HTTP post request
+				reqBody, err := json.Marshal(metricsBatch)
+				if err != nil {
+					logger.Log.Error("couldn`t serialize to json", zap.Error(err))
+					return err
+				}
+
+				compressedData, err := common.Compress(reqBody)
+				if err != nil {
+					logger.Log.Error("failed to compress data to gzip", zap.Error(err))
+				}
+
+				headers := map[string]string{"Content-Type": "application/json", "Content-Encoding": "gzip"}
+				if m.signKey != "" {
+					data := *compressedData
+					h := hmac.New(sha256.New, []byte(m.signKey))
+					if _, err := h.Write(data.Bytes()); err != nil {
+						return err
+					}
+					dst := h.Sum(nil)
+					logger.Log.Info("create hmac signature")
+					headers["HashSHA256"] = hex.EncodeToString(dst)
+				}
+
+				res, err := m.client.Post("/updates/", compressedData, headers)
+				if err != nil {
+					logger.Log.Error(fmt.Sprintf("couldn`t send metrics batch of length %d", len(metricsBatch)), zap.Error(err))
+					return err
+				}
+				res.Body.Close()
+
+				if res.StatusCode != 200 {
+					return fmt.Errorf("error: server return code %d, while sending metric batch", res.StatusCode)
+				}
+				logger.Log.Info("send metrics to storage server successfully.")
+			}
+		case <-ctx.Done():
+			tick.Stop()
+			m.wg.Done()
+			return nil
 		}
 	}
-	return nil
 }

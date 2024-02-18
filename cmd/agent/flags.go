@@ -12,6 +12,7 @@ var (
 	pollInterval           int64
 	reportInterval         int64
 	flagSecretKey          string
+	flagRateLimit          uint64
 	httpClientRetry             = 3
 	httpClientRetryBackoff uint = 1
 )
@@ -23,6 +24,7 @@ func parseFlags() {
 	flag.Int64Var(&pollInterval, "p", 2, "interval in seconds between poll requests")
 	flag.Int64Var(&reportInterval, "r", 10, "interval in seconds between push requests to server")
 	flag.StringVar(&flagSecretKey, "k", "", "secret key for digital signature")
+	flag.Uint64Var(&flagRateLimit, "l", 1, "number of simultaneous requests to server")
 
 	flag.Parse()
 
@@ -44,5 +46,9 @@ func parseFlags() {
 
 	if envSecretKey := os.Getenv("KEY"); envSecretKey != "" {
 		flagSecretKey = envSecretKey
+	}
+
+	if envRateLimit := os.Getenv("KEY"); envRateLimit != "" {
+		flagRateLimit, _ = strconv.ParseUint(envRateLimit, 10, 64)
 	}
 }

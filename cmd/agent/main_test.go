@@ -1,10 +1,10 @@
 package main
 
 import (
+	"context"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/sebasttiano/Blackbird.git/internal/storage"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -17,12 +17,11 @@ func TestGetMetrics(t *testing.T) {
 	server := httptest.NewServer(router)
 	defer server.Close()
 	serverURL := server.URL
-	mh := NewMetricHandler(1, 5, 15, serverURL, "secret")
+	mh := NewMetricHandler(1, 5, serverURL, "secret")
 
 	t.Run("Test running intervals", func(t *testing.T) {
 		startTime := time.Now()
-		err := mh.GetMetrics()
-		require.NoError(t, err)
+		mh.GetMetrics(context.TODO())
 		duration := time.Since(startTime)
 		assert.Equal(t, time.Duration(15)*time.Second, duration.Round(time.Second))
 	})
@@ -35,7 +34,7 @@ func TestIterateStructFieldsAndSend(t *testing.T) {
 	server := httptest.NewServer(router)
 	defer server.Close()
 	serverURL := server.URL
-	mh := NewMetricHandler(1, 5, 15, serverURL, "secret")
+	mh := NewMetricHandler(1, 5, serverURL, "secret")
 
 	tests := []struct {
 		name           string
@@ -56,7 +55,7 @@ func TestIterateStructFieldsAndSend(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mh.metrics = tt.testMetric
-			if err := mh.IterateStructFieldsAndSend(); err != nil {
+			if err := mh.IterateStructFieldsAndSend(context.TODO()); err != nil {
 				assert.NotContainsf(t, err.Error(), tt.notExpectedMsg, "not expected error occured")
 			}
 
