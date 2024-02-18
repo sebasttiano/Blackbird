@@ -129,13 +129,13 @@ func CheckSign(key string) func(next http.Handler) http.Handler {
 			b, err := io.ReadAll(req.Body)
 			if err != nil {
 				logger.Log.Error("failed to read request body")
-				res.WriteHeader(http.StatusBadRequest)
+				http.Error(res, "failed to read request body, check your request", http.StatusBadRequest)
 				return
 			}
 
 			if _, err := h.Write(b); err != nil {
 				logger.Log.Error("failed to write bytes to hmac")
-				res.WriteHeader(http.StatusInternalServerError)
+				http.Error(res, "internal server error", http.StatusInternalServerError)
 				return
 			}
 
@@ -143,13 +143,13 @@ func CheckSign(key string) func(next http.Handler) http.Handler {
 			headerSign, err := hex.DecodeString(hashSHA256)
 			if err != nil {
 				logger.Log.Error("failed to decode hashSHA256 header hash")
-				res.WriteHeader(http.StatusInternalServerError)
+				http.Error(res, "failed to decode hashSHA256", http.StatusInternalServerError)
 				return
 			}
 
 			if !hmac.Equal(sign, headerSign) {
 				logger.Log.Error("error: signature validation failed")
-				res.WriteHeader(http.StatusBadRequest)
+				http.Error(res, "error: signature validation failed", http.StatusInternalServerError)
 				return
 			}
 

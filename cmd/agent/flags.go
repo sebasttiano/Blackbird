@@ -22,7 +22,7 @@ func parseFlags() {
 	// Parse from cli
 	flag.StringVar(&serverIPAddr, "a", "localhost:8080", "address and port of metric storage server")
 	flag.Int64Var(&pollInterval, "p", 2, "interval in seconds between poll requests")
-	flag.Int64Var(&reportInterval, "r", 10, "interval in seconds between push requests to server")
+	flag.Int64Var(&reportInterval, "r", 5, "interval in seconds between push requests to server")
 	flag.StringVar(&flagSecretKey, "k", "", "secret key for digital signature")
 	flag.Uint64Var(&flagRateLimit, "l", 1, "number of simultaneous requests to server")
 
@@ -48,7 +48,7 @@ func parseFlags() {
 		flagSecretKey = envSecretKey
 	}
 
-	if envRateLimit := os.Getenv("KEY"); envRateLimit != "" {
+	if envRateLimit := os.Getenv("RATE_LIMIT"); envRateLimit != "" {
 		flagRateLimit, _ = strconv.ParseUint(envRateLimit, 10, 64)
 	}
 }

@@ -12,6 +12,8 @@ import (
 	"github.com/sebasttiano/Blackbird.git/internal/models"
 	"github.com/shirou/gopsutil/v3/mem"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
+	"io"
 	"math/rand"
 	"os/signal"
 	"reflect"
@@ -73,18 +75,28 @@ func run() error {
 	logger.Log.Info(fmt.Sprintf("Running agent with poll interval %d and report interval %d\n", pollInterval, reportInterval))
 	logger.Log.Info(fmt.Sprintf("Metric storage server address is set to %s\n", serverIPAddr))
 	mh := NewMetricHandler(pollInterval, reportInterval, "http://"+serverIPAddr, flagSecretKey)
-
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGKILL, syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
-	//var wg sync.WaitGroup
 
 	mh.wg.Add(2)
 	go mh.GetMetrics(ctx)
 	go mh.GetGopsutilMetrics(ctx)
 
+	g := new(errgroup.Group)
+
 	for i := 0; i < int(flagRateLimit); i++ {
-		mh.wg.Add(1)
-		go mh.IterateStructFieldsAndSend(ctx)
+		g.Go(func() error {
+			err := mh.IterateStructFieldsAndSend(ctx)
+			if err != nil {
+				logger.Log.Error("failed to send metrics,", zap.Error(err))
+				return err
+			}
+			return nil
+		},
+		)
+	}
+	if err := g.Wait(); err != nil {
+		cancel()
 	}
 	mh.wg.Wait()
 	return nil
@@ -117,7 +129,6 @@ func NewMetricHandler(pollInterval, reportInterval int64, serverAddr string, sig
 // GetMetrics collect runtime metrics
 func (m *MetricHandler) GetMetrics(ctx context.Context) {
 
-	//m.metrics.PollCount = 0
 	tick := time.NewTicker(m.getInterval)
 
 	for {
@@ -224,7 +235,6 @@ func (m *MetricHandler) IterateStructFieldsAndSend(ctx context.Context) error {
 			}
 
 			if len(metricsBatch) > 0 {
-
 				// Make an HTTP post request
 				reqBody, err := json.Marshal(metricsBatch)
 				if err != nil {
@@ -252,18 +262,19 @@ func (m *MetricHandler) IterateStructFieldsAndSend(ctx context.Context) error {
 				res, err := m.client.Post("/updates/", compressedData, headers)
 				if err != nil {
 					logger.Log.Error(fmt.Sprintf("couldn`t send metrics batch of length %d", len(metricsBatch)), zap.Error(err))
-					return err
+					continue
 				}
+				answer, _ := io.ReadAll(res.Body)
 				res.Body.Close()
 
 				if res.StatusCode != 200 {
-					return fmt.Errorf("error: server return code %d, while sending metric batch", res.StatusCode)
+					logger.Log.Error(fmt.Sprintf("error: server return code %d: message: %s", res.StatusCode, answer))
+					continue
 				}
 				logger.Log.Info("send metrics to storage server successfully.")
 			}
 		case <-ctx.Done():
 			tick.Stop()
-			m.wg.Done()
 			return nil
 		}
 	}

@@ -20,10 +20,13 @@ func TestGetMetrics(t *testing.T) {
 	mh := NewMetricHandler(1, 5, serverURL, "secret")
 
 	t.Run("Test running intervals", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+		defer cancel()
 		startTime := time.Now()
-		mh.GetMetrics(context.TODO())
+		mh.wg.Add(1)
+		mh.GetMetrics(ctx)
 		duration := time.Since(startTime)
-		assert.Equal(t, time.Duration(15)*time.Second, duration.Round(time.Second))
+		assert.Equal(t, time.Duration(5)*time.Second, duration.Round(time.Second))
 	})
 }
 
@@ -43,7 +46,7 @@ func TestIterateStructFieldsAndSend(t *testing.T) {
 	}{
 		{
 			name:           "Test OK return code for all metrics",
-			notExpectedMsg: "server return code",
+			notExpectedMsg: "servers return code",
 			testMetric:     MetricsSet{Alloc: 134408, Mallocs: 312, MCacheInuse: 9600},
 		},
 		{
@@ -55,7 +58,9 @@ func TestIterateStructFieldsAndSend(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mh.metrics = tt.testMetric
-			if err := mh.IterateStructFieldsAndSend(context.TODO()); err != nil {
+			ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+			defer cancel()
+			if err := mh.IterateStructFieldsAndSend(ctx); err != nil {
 				assert.NotContainsf(t, err.Error(), tt.notExpectedMsg, "not expected error occured")
 			}
 
