@@ -60,21 +60,24 @@ type MetricsSet struct {
 }
 
 func main() {
-	parseFlags()
+	//parseFlags()
+	cfg := NewConfig()
 
-	if err := run(); err != nil {
+	if err := logger.Initialize(cfg.flagLogLevel); err != nil {
+		fmt.Println("logger initialization failed")
+		return
+	}
+
+	if err := run(cfg); err != nil {
 		logger.Log.Error("While executing agent, error occurred", zap.Error(err))
 	}
 }
 
-func run() error {
+func run(cfg Config) error {
 
-	if err := logger.Initialize(flagLogLevel); err != nil {
-		return err
-	}
-	logger.Log.Info(fmt.Sprintf("Running agent with poll interval %d and report interval %d\n", pollInterval, reportInterval))
-	logger.Log.Info(fmt.Sprintf("Metric storage server address is set to %s\n", serverIPAddr))
-	mh := NewMetricHandler(pollInterval, reportInterval, "http://"+serverIPAddr, flagSecretKey)
+	logger.Log.Info(fmt.Sprintf("Running agent with poll interval %d and report interval %d\n", cfg.pollInterval, cfg.reportInterval))
+	logger.Log.Info(fmt.Sprintf("Metric storage server address is set to %s\n", cfg.serverIPAddr))
+	mh := NewMetricHandler(cfg.pollInterval, cfg.reportInterval, "http://"+cfg.serverIPAddr, cfg.flagSecretKey)
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGKILL, syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 
@@ -84,7 +87,7 @@ func run() error {
 
 	g := new(errgroup.Group)
 
-	for i := 0; i < int(flagRateLimit); i++ {
+	for i := 0; i < int(cfg.flagRateLimit); i++ {
 		g.Go(func() error {
 			err := mh.IterateStructFieldsAndSend(ctx)
 			if err != nil {
@@ -121,7 +124,7 @@ func NewMetricHandler(pollInterval, reportInterval int64, serverAddr string, sig
 		sendInterval: time.Duration(reportInterval) * time.Second,
 		getCounter:   *getCounter,
 		sendCounter:  time.Duration(1) * time.Second,
-		client:       common.NewHTTPClient(serverAddr, httpClientRetry, httpClientRetryBackoff),
+		client:       common.NewHTTPClient(serverAddr, 3, 1),
 		signKey:      signKey,
 	}
 }
