@@ -84,45 +84,43 @@ func (a *Agent) GetMetrics(ctx context.Context, getInterval time.Duration, jobs 
 	defer close(jobs)
 	tick := time.NewTicker(getInterval)
 
-	for {
+	for range tick.C {
+		atomic.AddInt64(&a.getCounter, 1)
+		runtime.ReadMemStats(&a.rtm)
+
+		logger.Log.Info("collect memstats successfully")
+		a.Metrics.Alloc = float64(a.rtm.Alloc)
+		a.Metrics.TotalAlloc = float64(a.rtm.TotalAlloc)
+		a.Metrics.BuckHashSys = float64(a.rtm.BuckHashSys)
+		a.Metrics.Frees = float64(a.rtm.Frees)
+		a.Metrics.GCCPUFraction = a.rtm.GCCPUFraction
+		a.Metrics.GCSys = float64(a.rtm.GCSys)
+		a.Metrics.HeapAlloc = float64(a.rtm.HeapAlloc)
+		a.Metrics.HeapIdle = float64(a.rtm.HeapIdle)
+		a.Metrics.HeapInuse = float64(a.rtm.HeapInuse)
+		a.Metrics.HeapObjects = float64(a.rtm.HeapObjects)
+		a.Metrics.HeapReleased = float64(a.rtm.HeapReleased)
+		a.Metrics.HeapSys = float64(a.rtm.HeapSys)
+		a.Metrics.LastGC = float64(a.rtm.LastGC)
+		a.Metrics.Lookups = float64(a.rtm.Lookups)
+		a.Metrics.MCacheInuse = float64(a.rtm.MCacheInuse)
+		a.Metrics.MCacheSys = float64(a.rtm.MCacheSys)
+		a.Metrics.MSpanInuse = float64(a.rtm.MSpanInuse)
+		a.Metrics.MSpanSys = float64(a.rtm.MSpanSys)
+		a.Metrics.Mallocs = float64(a.rtm.Mallocs)
+		a.Metrics.NextGC = float64(a.rtm.NextGC)
+		a.Metrics.NumForcedGC = float64(a.rtm.NumForcedGC)
+		a.Metrics.NumGC = float64(a.rtm.NumGC)
+		a.Metrics.OtherSys = float64(a.rtm.OtherSys)
+		a.Metrics.PauseTotalNs = float64(a.rtm.PauseTotalNs)
+		a.Metrics.StackInuse = float64(a.rtm.StackInuse)
+		a.Metrics.StackSys = float64(a.rtm.StackSys)
+		a.Metrics.Sys = float64(a.rtm.Sys)
+		a.Metrics.PollCount = a.getCounter
+		a.Metrics.RandomValue = rand.Float64()
+
 		select {
-		case <-tick.C:
-			atomic.AddInt64(&a.getCounter, 1)
-			runtime.ReadMemStats(&a.rtm)
-
-			logger.Log.Info("collect memstats successfully")
-			a.Metrics.Alloc = float64(a.rtm.Alloc)
-			a.Metrics.TotalAlloc = float64(a.rtm.TotalAlloc)
-			a.Metrics.BuckHashSys = float64(a.rtm.BuckHashSys)
-			a.Metrics.Frees = float64(a.rtm.Frees)
-			a.Metrics.GCCPUFraction = a.rtm.GCCPUFraction
-			a.Metrics.GCSys = float64(a.rtm.GCSys)
-			a.Metrics.HeapAlloc = float64(a.rtm.HeapAlloc)
-			a.Metrics.HeapIdle = float64(a.rtm.HeapIdle)
-			a.Metrics.HeapInuse = float64(a.rtm.HeapInuse)
-			a.Metrics.HeapObjects = float64(a.rtm.HeapObjects)
-			a.Metrics.HeapReleased = float64(a.rtm.HeapReleased)
-			a.Metrics.HeapSys = float64(a.rtm.HeapSys)
-			a.Metrics.LastGC = float64(a.rtm.LastGC)
-			a.Metrics.Lookups = float64(a.rtm.Lookups)
-			a.Metrics.MCacheInuse = float64(a.rtm.MCacheInuse)
-			a.Metrics.MCacheSys = float64(a.rtm.MCacheSys)
-			a.Metrics.MSpanInuse = float64(a.rtm.MSpanInuse)
-			a.Metrics.MSpanSys = float64(a.rtm.MSpanSys)
-			a.Metrics.Mallocs = float64(a.rtm.Mallocs)
-			a.Metrics.NextGC = float64(a.rtm.NextGC)
-			a.Metrics.NumForcedGC = float64(a.rtm.NumForcedGC)
-			a.Metrics.NumGC = float64(a.rtm.NumGC)
-			a.Metrics.OtherSys = float64(a.rtm.OtherSys)
-			a.Metrics.PauseTotalNs = float64(a.rtm.PauseTotalNs)
-			a.Metrics.StackInuse = float64(a.rtm.StackInuse)
-			a.Metrics.StackSys = float64(a.rtm.StackSys)
-			a.Metrics.Sys = float64(a.rtm.Sys)
-			a.Metrics.PollCount = a.getCounter
-			a.Metrics.RandomValue = rand.Float64()
-
-			jobs <- a.Metrics
-
+		case jobs <- a.Metrics:
 		case <-ctx.Done():
 			tick.Stop()
 			a.WG.Done()
@@ -138,20 +136,17 @@ func (a *Agent) GetGopsutilMetrics(ctx context.Context, getInterval time.Duratio
 	defer close(jobs)
 	tick := time.NewTicker(getInterval)
 
-	for {
+	for range tick.C {
+		stats, err := mem.VirtualMemory()
+		if err != nil {
+			logger.Log.Error("failed to collect virtual memory stats", zap.Error(err))
+		}
+		logger.Log.Info("collect virtual memory stats successfully")
+		a.GMetrics.TotalMemory = float64(stats.Total)
+		a.GMetrics.FreeMemory = float64(stats.Total)
+		a.GMetrics.CPUUtilization = stats.UsedPercent
 		select {
-		case <-tick.C:
-			stats, err := mem.VirtualMemory()
-			if err != nil {
-				logger.Log.Error("failed to collect virtual memory stats", zap.Error(err))
-			}
-			logger.Log.Info("collect virtual memory stats successfully")
-			a.GMetrics.TotalMemory = float64(stats.Total)
-			a.GMetrics.FreeMemory = float64(stats.Total)
-			a.GMetrics.CPUUtilization = stats.UsedPercent
-
-			jobs <- a.GMetrics
-
+		case jobs <- a.GMetrics:
 		case <-ctx.Done():
 			tick.Stop()
 			a.WG.Done()
@@ -161,7 +156,7 @@ func (a *Agent) GetGopsutilMetrics(ctx context.Context, getInterval time.Duratio
 }
 
 // IterateStructFieldsAndSend prepares url with values and make post request to server
-func (a *Agent) IterateStructFieldsAndSend(ctx context.Context, sendInterval time.Duration, jobsMetrics <-chan MetricsSet, jobsGMetrics <-chan GopsutilMetricsSet) error {
+func (a *Agent) IterateStructFieldsAndSend(ctx context.Context, sendInterval time.Duration, jobsMetrics <-chan MetricsSet, jobsGMetrics <-chan GopsutilMetricsSet) {
 
 	tick := time.NewTicker(sendInterval)
 
@@ -207,8 +202,7 @@ func (a *Agent) IterateStructFieldsAndSend(ctx context.Context, sendInterval tim
 				reqBody, err := json.Marshal(metricsBatch)
 				if err != nil {
 					logger.Log.Error("couldn`t serialize to json", zap.Error(err))
-					return err
-					//continue
+					continue
 				}
 
 				compressedData, err := common.Compress(reqBody)
@@ -223,8 +217,7 @@ func (a *Agent) IterateStructFieldsAndSend(ctx context.Context, sendInterval tim
 					h := hmac.New(sha256.New, []byte(a.signKey))
 					if _, err := h.Write(data.Bytes()); err != nil {
 						logger.Log.Error("failed to create hmac signature")
-						//continue
-						return err
+						continue
 					}
 					dst := h.Sum(nil)
 					logger.Log.Info("create hmac signature")
@@ -248,7 +241,7 @@ func (a *Agent) IterateStructFieldsAndSend(ctx context.Context, sendInterval tim
 		case <-ctx.Done():
 			tick.Stop()
 			a.WG.Done()
-			return nil
+			return
 		}
 	}
 }

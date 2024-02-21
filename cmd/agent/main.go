@@ -40,24 +40,10 @@ func run(cfg Config) error {
 	go a.GetMetrics(ctx, time.Duration(cfg.pollInterval)*time.Second, jobsMetrics)
 	go a.GetGopsutilMetrics(ctx, time.Duration(cfg.pollInterval)*time.Second, jobsGMetrics)
 
-	//g := new(errgroup.Group)
-
 	for i := 0; i < int(cfg.flagRateLimit); i++ {
 		a.WG.Add(1)
 		go a.IterateStructFieldsAndSend(ctx, time.Duration(cfg.reportInterval)*time.Second, jobsMetrics, jobsGMetrics)
-		//g.Go(func() error {
-		//	err := a.IterateStructFieldsAndSend(ctx, time.Duration(cfg.reportInterval)*time.Second, jobsMetrics, jobsGMetrics)
-		//	if err != nil {
-		//		logger.Log.Error("failed to send metrics,", zap.Error(err))
-		//		return err
-		//	}
-		//	return nil
-		//},
-		//)
 	}
-	//if err := g.Wait(); err != nil {
-	//	cancel()
-	//}
 	a.WG.Wait()
 	return nil
 }
