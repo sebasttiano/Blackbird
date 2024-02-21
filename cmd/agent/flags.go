@@ -6,17 +6,6 @@ import (
 	"strconv"
 )
 
-//var (
-//	serverIPAddr           string
-//	flagLogLevel           string
-//	pollInterval           int64
-//	reportInterval         int64
-//	flagSecretKey          string
-//	flagRateLimit          uint64
-//	httpClientRetry             = 3
-//	httpClientRetryBackoff uint = 1
-//)
-
 type Config struct {
 	serverIPAddr   string
 	flagLogLevel   string

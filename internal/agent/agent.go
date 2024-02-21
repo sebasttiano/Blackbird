@@ -49,32 +49,39 @@ type MetricsSet struct {
 	StackInuse,
 	StackSys,
 	Sys,
-	TotalMemory,
-	FreeMemory,
-	CPUUtilization,
 	RandomValue float64
 	PollCount int64
+}
+
+type GopsutilMetricsSet struct {
+	TotalMemory,
+	FreeMemory,
+	CPUUtilization float64
 }
 
 type Agent struct {
 	getCounter int64
 	client     common.HTTPClient
 	rtm        runtime.MemStats
+	signKey    string
 	Metrics    MetricsSet
+	GMetrics   GopsutilMetricsSet
 	WG         sync.WaitGroup
 }
 
-func NewAgent(serverAddr string, clientRetries int, backoffFactor uint) *Agent {
+func NewAgent(serverAddr string, clientRetries int, backoffFactor uint, signKey string) *Agent {
 	getCounter := new(int64)
 	return &Agent{
 		getCounter: *getCounter,
 		client:     common.NewHTTPClient(serverAddr, clientRetries, backoffFactor),
+		signKey:    signKey,
 	}
 }
 
 // GetMetrics collect runtime metrics
-func (a *Agent) GetMetrics(ctx context.Context, getInterval time.Duration) {
+func (a *Agent) GetMetrics(ctx context.Context, getInterval time.Duration, jobs chan<- MetricsSet) {
 
+	defer close(jobs)
 	tick := time.NewTicker(getInterval)
 
 	for {
@@ -113,6 +120,9 @@ func (a *Agent) GetMetrics(ctx context.Context, getInterval time.Duration) {
 			a.Metrics.Sys = float64(a.rtm.Sys)
 			a.Metrics.PollCount = a.getCounter
 			a.Metrics.RandomValue = rand.Float64()
+
+			jobs <- a.Metrics
+
 		case <-ctx.Done():
 			tick.Stop()
 			a.WG.Done()
@@ -123,8 +133,9 @@ func (a *Agent) GetMetrics(ctx context.Context, getInterval time.Duration) {
 }
 
 // GetGopsutilMetrics collect gopsutil metrics
-func (a *Agent) GetGopsutilMetrics(ctx context.Context, getInterval time.Duration) {
+func (a *Agent) GetGopsutilMetrics(ctx context.Context, getInterval time.Duration, jobs chan<- GopsutilMetricsSet) {
 
+	defer close(jobs)
 	tick := time.NewTicker(getInterval)
 
 	for {
@@ -135,9 +146,12 @@ func (a *Agent) GetGopsutilMetrics(ctx context.Context, getInterval time.Duratio
 				logger.Log.Error("failed to collect virtual memory stats", zap.Error(err))
 			}
 			logger.Log.Info("collect virtual memory stats successfully")
-			a.Metrics.TotalMemory = float64(stats.Total)
-			a.Metrics.FreeMemory = float64(stats.Total)
-			a.Metrics.CPUUtilization = stats.UsedPercent
+			a.GMetrics.TotalMemory = float64(stats.Total)
+			a.GMetrics.FreeMemory = float64(stats.Total)
+			a.GMetrics.CPUUtilization = stats.UsedPercent
+
+			jobs <- a.GMetrics
+
 		case <-ctx.Done():
 			tick.Stop()
 			a.WG.Done()
@@ -147,17 +161,25 @@ func (a *Agent) GetGopsutilMetrics(ctx context.Context, getInterval time.Duratio
 }
 
 // IterateStructFieldsAndSend prepares url with values and make post request to server
-func (a *Agent) IterateStructFieldsAndSend(ctx context.Context, sendInterval time.Duration, signKey string) error {
+func (a *Agent) IterateStructFieldsAndSend(ctx context.Context, sendInterval time.Duration, jobsMetrics <-chan MetricsSet, jobsGMetrics <-chan GopsutilMetricsSet) error {
 
 	tick := time.NewTicker(sendInterval)
 
 	for {
 		select {
 		case <-tick.C:
+			var metric MetricsSet
+			var metricG GopsutilMetricsSet
 			var metrics models.Metrics
 			var metricsBatch []models.Metrics
+			var value reflect.Value
 
-			value := reflect.ValueOf(a.Metrics)
+			select {
+			case metric = <-jobsMetrics:
+				value = reflect.ValueOf(metric)
+			case metricG = <-jobsGMetrics:
+				value = reflect.ValueOf(metricG)
+			}
 			numFields := value.NumField()
 			structType := value.Type()
 
@@ -186,18 +208,22 @@ func (a *Agent) IterateStructFieldsAndSend(ctx context.Context, sendInterval tim
 				if err != nil {
 					logger.Log.Error("couldn`t serialize to json", zap.Error(err))
 					return err
+					//continue
 				}
 
 				compressedData, err := common.Compress(reqBody)
 				if err != nil {
 					logger.Log.Error("failed to compress data to gzip", zap.Error(err))
+					continue
 				}
 
 				headers := map[string]string{"Content-Type": "application/json", "Content-Encoding": "gzip"}
-				if signKey != "" {
+				if a.signKey != "" {
 					data := *compressedData
-					h := hmac.New(sha256.New, []byte(signKey))
+					h := hmac.New(sha256.New, []byte(a.signKey))
 					if _, err := h.Write(data.Bytes()); err != nil {
+						logger.Log.Error("failed to create hmac signature")
+						//continue
 						return err
 					}
 					dst := h.Sum(nil)
@@ -221,6 +247,7 @@ func (a *Agent) IterateStructFieldsAndSend(ctx context.Context, sendInterval tim
 			}
 		case <-ctx.Done():
 			tick.Stop()
+			a.WG.Done()
 			return nil
 		}
 	}

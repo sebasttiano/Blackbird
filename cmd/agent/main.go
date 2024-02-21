@@ -6,7 +6,6 @@ import (
 	"github.com/sebasttiano/Blackbird.git/internal/agent"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 	"os/signal"
 	"syscall"
 	"time"
@@ -30,30 +29,35 @@ func run(cfg Config) error {
 
 	logger.Log.Info(fmt.Sprintf("Running agent with poll interval %d and report interval %d\n", cfg.pollInterval, cfg.reportInterval))
 	logger.Log.Info(fmt.Sprintf("Metric storage server address is set to %s\n", cfg.serverIPAddr))
-	a := agent.NewAgent("http://"+cfg.serverIPAddr, 3, 1)
+	a := agent.NewAgent("http://"+cfg.serverIPAddr, 3, 1, cfg.flagSecretKey)
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGKILL, syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 
-	a.WG.Add(2)
-	go a.GetMetrics(ctx, time.Duration(cfg.pollInterval))
-	go a.GetGopsutilMetrics(ctx, time.Duration(cfg.pollInterval))
+	jobsMetrics := make(chan agent.MetricsSet, 10)
+	jobsGMetrics := make(chan agent.GopsutilMetricsSet, 10)
 
-	g := new(errgroup.Group)
+	a.WG.Add(2)
+	go a.GetMetrics(ctx, time.Duration(cfg.pollInterval)*time.Second, jobsMetrics)
+	go a.GetGopsutilMetrics(ctx, time.Duration(cfg.pollInterval)*time.Second, jobsGMetrics)
+
+	//g := new(errgroup.Group)
 
 	for i := 0; i < int(cfg.flagRateLimit); i++ {
-		g.Go(func() error {
-			err := a.IterateStructFieldsAndSend(ctx, time.Duration(cfg.reportInterval), cfg.flagSecretKey)
-			if err != nil {
-				logger.Log.Error("failed to send metrics,", zap.Error(err))
-				return err
-			}
-			return nil
-		},
-		)
+		a.WG.Add(1)
+		go a.IterateStructFieldsAndSend(ctx, time.Duration(cfg.reportInterval)*time.Second, jobsMetrics, jobsGMetrics)
+		//g.Go(func() error {
+		//	err := a.IterateStructFieldsAndSend(ctx, time.Duration(cfg.reportInterval)*time.Second, jobsMetrics, jobsGMetrics)
+		//	if err != nil {
+		//		logger.Log.Error("failed to send metrics,", zap.Error(err))
+		//		return err
+		//	}
+		//	return nil
+		//},
+		//)
 	}
-	if err := g.Wait(); err != nil {
-		cancel()
-	}
+	//if err := g.Wait(); err != nil {
+	//	cancel()
+	//}
 	a.WG.Wait()
 	return nil
 }
