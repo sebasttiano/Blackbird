@@ -20,7 +20,7 @@ func newApp() *app {
 }
 
 // Initialize принимает на вход внешние зависимости приложения и инициализирует его
-func (a *app) Initialize(s *storage.StoreSettings) error {
+func (a *app) Initialize(s *storage.StoreSettings, key string) error {
 
 	var err error
 	if s.DBSave && s.Conn != nil {
@@ -36,5 +36,6 @@ func (a *app) Initialize(s *storage.StoreSettings) error {
 	}
 	a.views = handlers.NewServerViews(a.store)
 	a.views.DB = s.Conn
+	a.views.SignKey = key
 	return nil
 }

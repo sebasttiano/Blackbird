@@ -44,7 +44,7 @@ func TestOnlyPostAllowed(t *testing.T) {
 func TestGzipMiddleware(t *testing.T) {
 
 	views := NewServerViews(storage.NewMemStorage(&storage.StoreSettings{}))
-	srv := httptest.NewServer(GzipMiddleware(views.InitRouter()))
+	srv := httptest.NewServer(views.InitRouter())
 	defer srv.Close()
 
 	tests := []struct {

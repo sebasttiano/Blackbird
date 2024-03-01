@@ -27,10 +27,10 @@ func Test_parseFlags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Args = tt.args
-			parseFlags()
-			assert.Equal(t, tt.want.serverIPAddr, serverIPAddr)
-			assert.Equal(t, tt.want.pollInterval, pollInterval)
-			assert.Equal(t, tt.want.reportInterval, reportInterval)
+			config := parseFlags()
+			assert.Equal(t, tt.want.serverIPAddr, config.serverIPAddr)
+			assert.Equal(t, tt.want.pollInterval, config.pollInterval)
+			assert.Equal(t, tt.want.reportInterval, config.reportInterval)
 		})
 	}
 }

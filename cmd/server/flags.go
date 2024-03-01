@@ -16,6 +16,7 @@ var (
 	flagStoreInterval   int
 	flagRestoreOnStart  bool
 	flagDatabaseDSN     string
+	flagSecretKey       string
 	retriesDB           uint = 1
 	backoffFactor       uint = 1
 )
@@ -27,6 +28,7 @@ func parseFlags() error {
 	flag.StringVar(&flagFileStoragePath, "f", "/tmp/metrics-db.json", "specify the file to save metrics to")
 	flag.BoolVar(&flagRestoreOnStart, "r", true, "Restore saved metrics on start")
 	flag.StringVar(&flagDatabaseDSN, "d", "", "database host connect to, user and password")
+	flag.StringVar(&flagSecretKey, "k", "", "secret key for digital signature")
 
 	flag.Parse()
 
@@ -61,5 +63,10 @@ func parseFlags() error {
 	if envDatabaseDSN := os.Getenv("DATABASE_DSN"); envDatabaseDSN != "" {
 		flagDatabaseDSN = envDatabaseDSN
 	}
+
+	if envSecretKey := os.Getenv("KEY"); envSecretKey != "" {
+		flagSecretKey = envSecretKey
+	}
+
 	return nil
 }
