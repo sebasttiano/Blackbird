@@ -79,7 +79,7 @@ func parseAgentFlags() Config {
 func NewServerConfig() (Config, error) {
 
 	flags := parseServerFlags()
-	config := Config{}
+	config := Config{RetriesDB: 1, BackoffFactor: 1}
 
 	if err := env.Parse(&config); err != nil {
 		return Config{}, err
@@ -131,7 +131,5 @@ func parseServerFlags() Config {
 		RestoreMetrics:  restoreOnStart,
 		DatabaseDSN:     *databaseDSN,
 		SecretKey:       *secretKey,
-		RetriesDB:       1,
-		BackoffFactor:   1,
 	}
 }
