@@ -12,7 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
-	"github.com/sebasttiano/Blackbird.git/internal/storage"
+	"github.com/sebasttiano/Blackbird.git/internal/repository"
 	"github.com/sebasttiano/Blackbird.git/templates"
 	"go.uber.org/zap"
 	"io"
@@ -21,13 +21,13 @@ import (
 )
 
 type ServerViews struct {
-	Store     storage.Store
+	Store     repository.Store
 	templates templates.HTMLTemplates
 	DB        *sqlx.DB
 	SignKey   string
 }
 
-func NewServerViews(store storage.Store) ServerViews {
+func NewServerViews(store repository.Store) ServerViews {
 	return ServerViews{Store: store, templates: templates.ParseTemplates()}
 }
 
@@ -77,7 +77,7 @@ func (s *ServerViews) MainHandle(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// GetMetric gets metric from storage via interface method and sends in a
+// GetMetric gets metric from repository via interface method and sends in a
 // response
 func (s *ServerViews) GetMetric(res http.ResponseWriter, req *http.Request) {
 
@@ -101,7 +101,7 @@ func (s *ServerViews) GetMetric(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// GetMetricJSON gets metric from storage via interface method and sends in a model
+// GetMetricJSON gets metric from repository via interface method and sends in a model
 // response
 func (s *ServerViews) GetMetricJSON(res http.ResponseWriter, req *http.Request) {
 

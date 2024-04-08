@@ -1,4 +1,4 @@
-package storage
+package repository
 
 import (
 	"context"
@@ -141,7 +141,7 @@ func (d *DBStorage) GetAllValues(ctx context.Context) (s *StoreMetrics) {
 	return s
 }
 
-// NewDBStorage returns new database storage
+// NewDBStorage returns new database repository
 func NewDBStorage(conn *sqlx.DB, bootstrap bool, retries uint, backoffFactor uint) (*DBStorage, error) {
 	db := &DBStorage{conn: conn}
 	if bootstrap {

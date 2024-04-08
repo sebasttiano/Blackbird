@@ -58,7 +58,7 @@ func NewAgentConfig() (Config, error) {
 // parseAgentFlags handles args of cli agent
 func parseAgentFlags() Config {
 	// Parse from cli
-	serverIPAddr := flag.String("a", "localhost:8080", "address and port of metric storage server")
+	serverIPAddr := flag.String("a", "localhost:8080", "address and port of metric repository server")
 	pollInterval := flag.Int64("p", 2, "interval in seconds between poll requests")
 	reportInterval := flag.Int64("r", 5, "interval in seconds between push requests to server")
 	flagSecretKey := flag.String("k", "", "secret key for digital signature")

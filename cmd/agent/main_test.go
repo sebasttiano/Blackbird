@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/sebasttiano/Blackbird.git/internal/agent"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
-	"github.com/sebasttiano/Blackbird.git/internal/storage"
+	"github.com/sebasttiano/Blackbird.git/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"net/http/httptest"
 	"testing"
@@ -13,7 +13,7 @@ import (
 
 func TestGetMetrics(t *testing.T) {
 
-	views := handlers.NewServerViews(storage.NewMemStorage(&storage.StoreSettings{}))
+	views := handlers.NewServerViews(repository.NewMemStorage(&repository.StoreSettings{}))
 	router := views.InitRouter()
 	server := httptest.NewServer(router)
 	defer server.Close()

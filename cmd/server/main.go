@@ -6,7 +6,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/sebasttiano/Blackbird.git/internal/config"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
-	"github.com/sebasttiano/Blackbird.git/internal/storage"
+	"github.com/sebasttiano/Blackbird.git/internal/repository"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
@@ -46,7 +46,7 @@ func main() {
 // run init dependencies and starts http server
 func run(cfg config.Config) error {
 
-	storeSettings := &storage.StoreSettings{SaveFilePath: cfg.FileStoragePath, Retries: cfg.RetriesDB, BackoffFactor: cfg.BackoffFactor}
+	storeSettings := &repository.StoreSettings{SaveFilePath: cfg.FileStoragePath, Retries: cfg.RetriesDB, BackoffFactor: cfg.BackoffFactor}
 	if cfg.DatabaseDSN != "" {
 		var conn *sqlx.DB
 		conn, err := sqlx.Connect("pgx", cfg.DatabaseDSN)
@@ -71,7 +71,7 @@ func run(cfg config.Config) error {
 
 	if cfg.StoreInterval > 0 {
 		ticker := time.NewTicker(time.Second * time.Duration(cfg.StoreInterval))
-		go storage.TickerSaver(ticker, currentApp.store)
+		go repository.TickerSaver(ticker, currentApp.store)
 	}
 
 	if *cfg.RestoreMetrics && storeSettings.FileSave {

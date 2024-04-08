@@ -236,7 +236,7 @@ func (a *Agent) IterateStructFieldsAndSend(ctx context.Context, sendInterval tim
 					logger.Log.Error(fmt.Sprintf("error: server return code %d: message: %s", res.StatusCode, answer))
 					continue
 				}
-				logger.Log.Info("send metrics to storage server successfully.")
+				logger.Log.Info("send metrics to repository server successfully.")
 			}
 		case <-ctx.Done():
 			tick.Stop()
