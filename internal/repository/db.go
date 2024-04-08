@@ -2,148 +2,45 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
-	"github.com/sebasttiano/Blackbird.git/internal/models"
 	"go.uber.org/zap"
-	"strconv"
 	"time"
 )
 
-// DBStorage Keeps metrics in database
-type DBStorage struct {
-	conn   *sqlx.DB
-	client *PGClient
+// RetryError custom error for retry
+type RetryError struct {
+	Err error
 }
 
-type DBErrors struct {
-	ErrConnect error
+func NewRetryError(retries int, Err error) *RetryError {
+	return &RetryError{Err: fmt.Errorf("function failed after %d retries. last error was %w", retries, Err)}
+}
+func (re *RetryError) Error() string {
+	return fmt.Sprintf("%v", re.Err)
+}
+
+func (re *RetryError) Unwrap() error {
+	return re.Err
 }
 
 var pgError *pgconn.PgError
+var ErrNoRows = errors.New("sql: no rows in result set")
 
-// GetValue returns either gauge or counter metrics
-func (d *DBStorage) GetValue(ctx context.Context, metricName string, metricType string) (interface{}, error) {
-
-	switch metricType {
-	case "gauge":
-		m := GaugeMetric{Name: metricName}
-		g, err := Retry(ctx, d.client.retryDelays, d.client.GetGauge, &m)
-		if err != nil {
-			return nil, err
-		}
-		return g.Value, nil
-	case "counter":
-		m := CounterMetric{Name: metricName}
-		c, err := Retry(ctx, d.client.retryDelays, d.client.GetCounter, &m)
-		if err != nil {
-			return nil, err
-		}
-		return c.Value, nil
-	default:
-		return nil, errors.New("error: unknown metric type. only gauge and counter are available")
-	}
+// DBStorage define postgres client
+type DBStorage struct {
+	conn *sqlx.DB
 }
 
-// GetModelValue returns either gauge or counter metrics
-func (d *DBStorage) GetModelValue(ctx context.Context, metric *models.Metrics) error {
+// NewDBStorage creates client and retries chrony calculates
+func NewDBStorage(c *sqlx.DB, bootstrap bool) (*DBStorage, error) {
 
-	if metric.ID == "" {
-		return errors.New("name of the metric is required")
-	}
-
-	value, err := d.GetValue(ctx, metric.ID, metric.MType)
-	if err != nil {
-		return err
-	}
-
-	switch v := value.(type) {
-	case float64:
-		metric.Value = &v
-	case int64:
-		metric.Delta = &v
-	default:
-		return errors.New("error: unknown metric type. only gauge and counter are available")
-	}
-	return nil
-}
-
-// SetValue saves either gauge or counter metrics
-func (d *DBStorage) SetValue(ctx context.Context, metricName string, metricType string, metricValue string) error {
-
-	switch metricType {
-	case "gauge":
-		valueFloat, err := strconv.ParseFloat(metricValue, 64)
-		if err != nil {
-			return err
-		}
-		m := GaugeMetric{Name: metricName, Value: valueFloat}
-		_, err = Retry(ctx, d.client.retryDelays, d.client.SetGauge, &m)
-		if err != nil {
-			return err
-		}
-	case "counter":
-		intValue, err := strconv.ParseInt(metricValue, 10, 64)
-		if err != nil {
-			return err
-		}
-		m := CounterMetric{Name: metricName, Value: intValue}
-		_, err = Retry(ctx, d.client.retryDelays, d.client.SetCounter, &m)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// SetModelValue saves either gauge or counter metrics from model
-func (d *DBStorage) SetModelValue(ctx context.Context, metrics []*models.Metrics) error {
-
-	for _, metric := range metrics {
-
-		if metric.ID == "" {
-			return errors.New("name of the metric is required")
-		}
-
-		switch metric.MType {
-		case "gauge":
-			if metric.Value == nil {
-				return errors.New("value of the gauge is required")
-			}
-			if err := d.SetValue(ctx, metric.ID, metric.MType, fmt.Sprintf("%.12f", *metric.Value)); err != nil {
-				return err
-			}
-
-		case "counter":
-			if metric.Delta == nil {
-				return errors.New("value of the counter is required")
-			}
-			if err := d.SetValue(ctx, metric.ID, metric.MType, fmt.Sprintf("%d", *metric.Delta)); err != nil {
-				return err
-			}
-		default:
-			return errors.New("error: unknown metric type. Only gauge and counter are available")
-		}
-	}
-	return nil
-}
-
-// GetAllValues get all metrics from db and returns in raw format
-func (d *DBStorage) GetAllValues(ctx context.Context) (s *StoreMetrics) {
-
-	s = &StoreMetrics{make([]GaugeMetric, 0), make([]CounterMetric, 0)}
-
-	Retry(ctx, d.client.retryDelays, d.client.GetAllMetrics, s)
-	return s
-}
-
-// NewDBStorage returns new database repository
-func NewDBStorage(conn *sqlx.DB, bootstrap bool, retries uint, backoffFactor uint) (*DBStorage, error) {
-	db := &DBStorage{conn: conn}
+	db := &DBStorage{conn: c}
 	if bootstrap {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
@@ -159,18 +56,105 @@ func NewDBStorage(conn *sqlx.DB, bootstrap bool, retries uint, backoffFactor uin
 			return nil, err
 		}
 	}
-	return &DBStorage{conn: conn, client: NewPGClient(conn, retries, backoffFactor)}, nil
+
+	return db, nil
 }
 
-func (d *DBStorage) Save() error {
+// GetGauge method to get from gauge_metrics table
+func (d *DBStorage) GetGauge(ctx context.Context, metric *GaugeMetric) error {
+
+	sqlQuery := `SELECT id, name, gauge FROM gauge_metrics WHERE name = $1`
+
+	if err := d.conn.GetContext(ctx, metric, sqlQuery, metric.Name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNoRows
+		} else {
+			return err
+		}
+	}
 	return nil
 }
 
-func (d *DBStorage) Restore() error {
+// GetCounter method to get from counter_metrics table
+func (d *DBStorage) GetCounter(ctx context.Context, metric *CounterMetric) error {
+
+	sqlSelect := `SELECT id, name, counter FROM counter_metrics WHERE name = $1`
+
+	if err := d.conn.GetContext(ctx, metric, sqlSelect, metric.Name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNoRows
+		} else {
+			return err
+		}
+	}
 	return nil
 }
 
-// Bootstrap creates tables in DB
+// SetGauge method inserts or updates rows in gauge_metrics table
+func (d *DBStorage) SetGauge(ctx context.Context, metric *GaugeMetric) error {
+
+	tx, err := d.conn.Beginx()
+	if err != nil {
+		return err
+	}
+
+	sqlInsert := `INSERT INTO gauge_metrics (name, gauge)
+                      VALUES ($1, $2)
+                      ON CONFLICT (name) DO UPDATE
+                      SET gauge = excluded.gauge;`
+
+	if _, err := tx.ExecContext(ctx, sqlInsert, metric.Name, metric.Value); err != nil {
+		tx.Rollback()
+		return err
+	}
+	tx.Commit()
+	return nil
+}
+
+// SetCounter method inserts or updates rows in counter_metrics table
+func (d *DBStorage) SetCounter(ctx context.Context, metric *CounterMetric) error {
+
+	tx, err := d.conn.Beginx()
+	if err != nil {
+		return err
+	}
+
+	sqlInsert := `INSERT INTO counter_metrics (name, counter)
+					  VALUES ($1, $2)
+                      ON CONFLICT (name) DO UPDATE 
+					  SET counter = counter_metrics.counter + excluded.counter;`
+
+	if _, err := tx.ExecContext(ctx, sqlInsert, metric.Name, metric.Value); err != nil {
+		tx.Rollback()
+		return err
+	}
+	tx.Commit()
+	return nil
+}
+
+// GetAllMetrics takes all rows from gauge_metrics and counter_metrics tables
+func (d *DBStorage) GetAllMetrics(ctx context.Context, sm *StoreMetrics) error {
+
+	var allGauges []GaugeMetric
+	var allCounters []CounterMetric
+
+	sqlGaugeSelect := `SELECT id, name, gauge FROM gauge_metrics`
+	if err := d.conn.SelectContext(ctx, &allGauges, sqlGaugeSelect); err != nil {
+		return err
+	}
+	sm.Gauge = allGauges
+
+	sqlCounterSelect := `SELECT id, name, counter FROM counter_metrics`
+	if err := d.conn.SelectContext(ctx, &allCounters, sqlCounterSelect); err != nil {
+		return err
+	}
+	sm.Counter = allCounters
+
+	return nil
+}
+
+func (d *DBStorage) RestoreAllMetrics(gauges map[string]float64, counters map[string]int64) {}
+
 func (d *DBStorage) Bootstrap(ctx context.Context) error {
 
 	logger.Log.Debug("checking db tables")
@@ -183,12 +167,12 @@ func (d *DBStorage) Bootstrap(ctx context.Context) error {
 
 	// create table for gauge metrics
 	if _, err := tx.ExecContext(ctx, `
-        CREATE TABLE IF NOT EXISTS gauge_metrics (
-            id serial PRIMARY KEY,
+       CREATE TABLE IF NOT EXISTS gauge_metrics (
+           id serial PRIMARY KEY,
 			name varchar(128),
-            gauge double precision,
+           gauge double precision,
 	       	UNIQUE(name) 
-        )
+       )
 	`); err != nil {
 		logger.Log.Error("failed to create gauge_metrics table", zap.Error(err))
 		return err

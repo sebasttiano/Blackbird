@@ -6,7 +6,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/sebasttiano/Blackbird.git/internal/config"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
-	"github.com/sebasttiano/Blackbird.git/internal/repository"
+	"github.com/sebasttiano/Blackbird.git/internal/service"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
@@ -37,7 +37,7 @@ func main() {
 	<-done
 	logger.Log.Debug("shutdown signal interrupted")
 	if cfg.FileStoragePath != "" {
-		if err := currentApp.store.Save(); err != nil {
+		if err := currentApp.service.Save(); err != nil {
 			logger.Log.Error("couldn`t finally save file after graceful shutdown", zap.Error(err))
 		}
 	}
@@ -46,7 +46,7 @@ func main() {
 // run init dependencies and starts http server
 func run(cfg config.Config) error {
 
-	storeSettings := &repository.StoreSettings{SaveFilePath: cfg.FileStoragePath, Retries: cfg.RetriesDB, BackoffFactor: cfg.BackoffFactor}
+	serviceSettings := &service.ServiceSettings{SaveFilePath: cfg.FileStoragePath, Retries: cfg.RetriesDB, BackoffFactor: cfg.BackoffFactor}
 	if cfg.DatabaseDSN != "" {
 		var conn *sqlx.DB
 		conn, err := sqlx.Connect("pgx", cfg.DatabaseDSN)
@@ -55,27 +55,27 @@ func run(cfg config.Config) error {
 			os.Exit(1)
 		}
 		defer conn.Close()
-		storeSettings.Conn = conn
-		storeSettings.DBSave = true
+		serviceSettings.Conn = conn
+		serviceSettings.DBSave = true
 	} else if cfg.FileStoragePath != "" {
-		storeSettings.FileSave = true
+		serviceSettings.FileSave = true
 	}
 
 	if cfg.StoreInterval == 0 {
-		storeSettings.SyncSave = true
+		serviceSettings.SyncSave = true
 	}
 
-	if err := currentApp.Initialize(storeSettings, cfg.SecretKey); err != nil {
+	if err := currentApp.Initialize(serviceSettings, cfg.SecretKey); err != nil {
 		logger.Log.Error("failed to init app", zap.Error(err))
 	}
 
 	if cfg.StoreInterval > 0 {
 		ticker := time.NewTicker(time.Second * time.Duration(cfg.StoreInterval))
-		go repository.TickerSaver(ticker, currentApp.store)
+		go service.TickerSaver(ticker, currentApp.service)
 	}
 
-	if *cfg.RestoreMetrics && storeSettings.FileSave {
-		if err := currentApp.store.Restore(); err != nil {
+	if *cfg.RestoreMetrics && serviceSettings.FileSave {
+		if err := currentApp.service.Restore(); err != nil {
 			logger.Log.Error("couldn`t restore data")
 		}
 		logger.Log.Debug("metrics were restored")

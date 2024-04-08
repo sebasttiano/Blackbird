@@ -12,7 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
-	"github.com/sebasttiano/Blackbird.git/internal/repository"
+	"github.com/sebasttiano/Blackbird.git/internal/service"
 	"github.com/sebasttiano/Blackbird.git/templates"
 	"go.uber.org/zap"
 	"io"
@@ -21,14 +21,14 @@ import (
 )
 
 type ServerViews struct {
-	Store     repository.Store
+	Service   *service.Service
 	templates templates.HTMLTemplates
 	DB        *sqlx.DB
 	SignKey   string
 }
 
-func NewServerViews(store repository.Store) ServerViews {
-	return ServerViews{Store: store, templates: templates.ParseTemplates()}
+func NewServerViews(service *service.Service) ServerViews {
+	return ServerViews{Service: service, templates: templates.ParseTemplates()}
 }
 
 func (s *ServerViews) InitRouter() chi.Router {
@@ -70,7 +70,7 @@ func (s *ServerViews) MainHandle(res http.ResponseWriter, req *http.Request) {
 	defer cancel()
 
 	res.Header().Set("Content-Type", "text/html")
-	data := s.Store.GetAllValues(ctx)
+	data := s.Service.GetAllValues(ctx)
 	if err := s.templates.IndexTemplate.Execute(res, data); err != nil {
 		logger.Log.Error("couldn`t render the html template", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusInternalServerError)
@@ -87,7 +87,7 @@ func (s *ServerViews) GetMetric(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "metricType")
 	metricName := chi.URLParam(req, "metricName")
 
-	value, err := s.Store.GetValue(ctx, metricName, metricType)
+	value, err := s.Service.GetValue(ctx, metricName, metricType)
 	if err != nil {
 		logger.Log.Error("couldn`t find requested metric. ", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusNotFound)
@@ -122,7 +122,7 @@ func (s *ServerViews) GetMetricJSON(res http.ResponseWriter, req *http.Request) 
 	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
 
-	if err := s.Store.GetModelValue(ctx, &metrics); err != nil {
+	if err := s.Service.GetModelValue(ctx, &metrics); err != nil {
 		logger.Log.Debug("couldn`t get model", zap.Error(err))
 		http.Error(res, "couldn`t get model", http.StatusNotFound)
 	}
@@ -148,7 +148,7 @@ func (s *ServerViews) UpdateMetric(res http.ResponseWriter, req *http.Request) {
 	metricName := chi.URLParam(req, "metricName")
 	metricValue := chi.URLParam(req, "metricValue")
 
-	if err := s.Store.SetValue(ctx, metricName, metricType, metricValue); err != nil {
+	if err := s.Service.SetValue(ctx, metricName, metricType, metricValue); err != nil {
 		logger.Log.Error("couldn`t save metric. error: ", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
@@ -175,7 +175,7 @@ func (s *ServerViews) UpdateMetricJSON(res http.ResponseWriter, req *http.Reques
 	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
 
-	if err := s.Store.SetModelValue(ctx, []*models.Metrics{&metrics}); err != nil {
+	if err := s.Service.SetModelValue(ctx, []*models.Metrics{&metrics}); err != nil {
 		logger.Log.Error("couldn`t save metric. error: ", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
@@ -205,7 +205,7 @@ func (s *ServerViews) UpdateMetricsJSON(res http.ResponseWriter, req *http.Reque
 	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
 
-	if err := s.Store.SetModelValue(ctx, metrics); err != nil {
+	if err := s.Service.SetModelValue(ctx, metrics); err != nil {
 		logger.Log.Error("couldn`t save metric. error: ", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}

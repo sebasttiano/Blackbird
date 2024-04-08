@@ -16,11 +16,11 @@ func TestNewMemStorage(t *testing.T) {
 	}{
 		{
 			name:    "Create New MemStorage",
-			storage: *NewMemStorage(&StoreSettings{}),
+			storage: *NewMemStorage(&ServiceSettings{}),
 			want: MemStorage{
 				Gauge:    make(map[string]float64),
 				Counter:  map[string]int64{},
-				Settings: &StoreSettings{}},
+				Settings: &ServiceSettings{}},
 		},
 	}
 	for _, tt := range tests {
@@ -43,7 +43,7 @@ func TestNewMemStorage(t *testing.T) {
 	var localStorage Store = &MemStorage{
 		Gauge:    make(map[string]float64),
 		Counter:  make(map[string]int64),
-		Settings: &StoreSettings{},
+		Settings: &ServiceSettings{},
 	}
 
 	for _, tt := range testsValues {
