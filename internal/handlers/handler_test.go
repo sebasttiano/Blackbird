@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/sebasttiano/Blackbird.git/internal/repository"
+	"github.com/sebasttiano/Blackbird.git/internal/service"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +33,10 @@ func TestUpdateMetric(t *testing.T) {
 		{name: "Bad gauge value", url: "/update/gauge/TestMetric/aeew", method: http.MethodPost, expectedCode: http.StatusBadRequest, expectedBody: ""},
 	}
 
-	views := NewServerViews(repository.NewMemStorage(&repository.StoreSettings{SyncSave: false}))
+	views := NewServerViews(service.NewService(
+		&service.ServiceSettings{SyncSave: false, Retries: 1, BackoffFactor: 1},
+		repository.NewMemStorage()))
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := httptest.NewRequest(tt.method, tt.url, nil)

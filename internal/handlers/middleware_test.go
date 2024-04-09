@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/sebasttiano/Blackbird.git/internal/repository"
+	"github.com/sebasttiano/Blackbird.git/internal/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -43,7 +44,7 @@ func TestOnlyPostAllowed(t *testing.T) {
 
 func TestGzipMiddleware(t *testing.T) {
 
-	views := NewServerViews(repository.NewMemStorage(&repository.StoreSettings{}))
+	views := NewServerViews(service.NewService(&service.ServiceSettings{SyncSave: false}, repository.NewMemStorage()))
 	srv := httptest.NewServer(views.InitRouter())
 	defer srv.Close()
 

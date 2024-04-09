@@ -92,7 +92,7 @@ func (s *Service) GetValue(ctx context.Context, metricName string, metricType st
 		if err != nil && !errors.Is(repository.ErrNoRows, err) {
 			return nil, fmt.Errorf("failed to load gauge metric %w", err)
 		}
-		return m, nil
+		return m.Value, nil
 	case "counter":
 		m := repository.CounterMetric{Name: metricName}
 		var err error
@@ -103,7 +103,7 @@ func (s *Service) GetValue(ctx context.Context, metricName string, metricType st
 		if err != nil && !errors.Is(repository.ErrNoRows, err) {
 			return nil, fmt.Errorf("failed to load gauge metric %w", err)
 		}
-		return m, nil
+		return m.Value, nil
 	default:
 		return nil, errors.New("error: unknown metric type. only gauge and counter are available")
 	}
@@ -159,6 +159,8 @@ func (s *Service) SetValue(ctx context.Context, metricName string, metricType st
 		if err != nil {
 			return err
 		}
+	default:
+		return errors.New("error: unknown metric type. Only gauge and counter are available")
 	}
 
 	if s.Settings.SyncSave {
