@@ -2,18 +2,19 @@ package main
 
 import (
 	"fmt"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/jmoiron/sqlx"
-	"github.com/sebasttiano/Blackbird.git/internal/config"
-	"github.com/sebasttiano/Blackbird.git/internal/logger"
-	"github.com/sebasttiano/Blackbird.git/internal/service"
-	"go.uber.org/zap"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
+	"github.com/sebasttiano/Blackbird.git/internal/config"
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
+	"github.com/sebasttiano/Blackbird.git/internal/service"
+	"go.uber.org/zap"
 )
 
 func main() {

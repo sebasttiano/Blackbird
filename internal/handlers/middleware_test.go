@@ -1,14 +1,15 @@
 package handlers
 
 import (
-	"github.com/sebasttiano/Blackbird.git/internal/repository"
-	"github.com/sebasttiano/Blackbird.git/internal/service"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/sebasttiano/Blackbird.git/internal/repository"
+	"github.com/sebasttiano/Blackbird.git/internal/service"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestOnlyPostAllowed(t *testing.T) {

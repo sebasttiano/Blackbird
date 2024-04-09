@@ -5,13 +5,14 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"github.com/sebasttiano/Blackbird.git/internal/common"
-	"github.com/sebasttiano/Blackbird.git/internal/logger"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/sebasttiano/Blackbird.git/internal/common"
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
+	"go.uber.org/zap"
 )
 
 // OnlyPostAllowed gets Handler, make validation on Post request and returns also Handler.

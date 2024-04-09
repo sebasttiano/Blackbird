@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/sebasttiano/Blackbird.git/internal/agent"
-	"github.com/sebasttiano/Blackbird.git/internal/config"
-	"github.com/sebasttiano/Blackbird.git/internal/logger"
-	"go.uber.org/zap"
 	_ "net/http/pprof"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/sebasttiano/Blackbird.git/internal/agent"
+	"github.com/sebasttiano/Blackbird.git/internal/config"
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
+	"go.uber.org/zap"
 )
 
 func main() {

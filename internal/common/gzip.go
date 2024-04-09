@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"io"
 	"net/http"
 	"slices"
+
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
 )
 
 var compressedTypes = []string{

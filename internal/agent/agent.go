@@ -7,11 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/sebasttiano/Blackbird.git/internal/common"
-	"github.com/sebasttiano/Blackbird.git/internal/logger"
-	"github.com/sebasttiano/Blackbird.git/internal/models"
-	"github.com/shirou/gopsutil/v3/mem"
-	"go.uber.org/zap"
 	"io"
 	"math/rand"
 	"reflect"
@@ -19,6 +14,12 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/sebasttiano/Blackbird.git/internal/common"
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
+	"github.com/sebasttiano/Blackbird.git/internal/models"
+	"github.com/shirou/gopsutil/v3/mem"
+	"go.uber.org/zap"
 )
 
 type MetricsSet struct {

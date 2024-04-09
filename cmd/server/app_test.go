@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/sebasttiano/Blackbird.git/internal/service"
 	"testing"
+
+	"github.com/sebasttiano/Blackbird.git/internal/service"
 )
 
 func BenchmarkApp_Initialize(b *testing.B) {

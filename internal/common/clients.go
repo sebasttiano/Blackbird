@@ -3,11 +3,12 @@ package common
 import (
 	"errors"
 	"fmt"
-	"github.com/sebasttiano/Blackbird.git/internal/logger"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
+	"go.uber.org/zap"
 )
 
 type HTTPClientErrors struct {
