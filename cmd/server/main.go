@@ -9,6 +9,7 @@ import (
 	"github.com/sebasttiano/Blackbird.git/internal/service"
 	"go.uber.org/zap"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
