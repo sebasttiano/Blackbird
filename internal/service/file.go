@@ -18,7 +18,10 @@ type FileHanlder struct {
 }
 
 func NewFileHanlder(path string) *FileHanlder {
-	return &FileHanlder{path: path}
+	return &FileHanlder{
+		Gauge:   make(map[string]float64),
+		Counter: make(map[string]int64),
+		path:    path}
 }
 
 func (f *FileHanlder) Save(gauges map[string]float64, counters map[string]int64) error {

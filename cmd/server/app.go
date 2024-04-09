@@ -28,7 +28,6 @@ func (a *app) Initialize(s *service.ServiceSettings, key string) error {
 
 	if s.DBSave && s.Conn != nil {
 		logger.Log.Info("init database repository")
-		//a.service, err = repository.NewDBStorage(s.Conn, true, s.Retries, s.BackoffFactor)
 		repo, err = repository.NewDBStorage(s.Conn, true)
 		if err != nil {
 			return err

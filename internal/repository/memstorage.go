@@ -45,7 +45,7 @@ func (g *MemStorage) SetGauge(ctx context.Context, metric *GaugeMetric) error {
 }
 
 func (g *MemStorage) SetCounter(ctx context.Context, metric *CounterMetric) error {
-	g.Counter[metric.Name] = metric.Value
+	g.Counter[metric.Name] += metric.Value
 	return nil
 }
 

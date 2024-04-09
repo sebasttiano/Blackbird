@@ -56,7 +56,6 @@ func NewService(serviceSettings *ServiceSettings, repo Repository) *Service {
 	for i := 1; i <= int(serviceSettings.Retries); i++ {
 		ri = append(ri, serviceSettings.BackoffFactor*uint(i)-1)
 	}
-	fmt.Println(ri)
 	return &Service{serviceSettings, NewFileHanlder(serviceSettings.SaveFilePath), repo, ri}
 }
 
@@ -226,8 +225,8 @@ func (s *Service) Save() error {
 			return fmt.Errorf("failed to save metrics, %w", err)
 		}
 
-		var gauges map[string]float64
-		var counters map[string]int64
+		gauges := make(map[string]float64)
+		counters := make(map[string]int64)
 
 		for _, metric := range sm.Gauge {
 			gauges[metric.Name] = metric.Value
