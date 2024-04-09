@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+//go:generate mockgen -source=service.go -destination=mocks/mock.go
+
 var ErrNotSupported = errors.New("service not supported")
 
 type ErrRetryDB struct {

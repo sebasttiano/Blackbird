@@ -19,3 +19,9 @@ func TestParseTemplates(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkParseTemplates(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ParseTemplates()
+	}
+}
