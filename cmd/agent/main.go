@@ -6,7 +6,7 @@ import (
 	"github.com/sebasttiano/Blackbird.git/internal/agent"
 	"github.com/sebasttiano/Blackbird.git/internal/config"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
-	"net/http"
+	"go.uber.org/zap"
 	_ "net/http/pprof"
 	"os/signal"
 	"syscall"
@@ -27,8 +27,10 @@ func main() {
 		return
 	}
 
-	go run(cfg)
-	http.ListenAndServe("localhost:8081", nil)
+	if err := run(cfg); err != nil {
+		logger.Log.Error("While executing agent, error occurred", zap.Error(err))
+	}
+
 }
 
 func run(cfg config.Config) error {
