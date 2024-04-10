@@ -55,6 +55,7 @@ func TestUpdateMetric(t *testing.T) {
 }
 
 func BenchmarkHandler_sign(b *testing.B) {
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		sign("182f417b-f260-4b52-ab63-4a74cb7f0555", "oogheemeiS3ailiemaP1eeco9sodai")
 	}
