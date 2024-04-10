@@ -5,12 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"go.uber.org/zap"
-	"time"
 )
 
 // RetryError custom error for retry

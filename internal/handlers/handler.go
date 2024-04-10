@@ -7,6 +7,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmoiron/sqlx"
@@ -15,9 +19,6 @@ import (
 	"github.com/sebasttiano/Blackbird.git/internal/service"
 	"github.com/sebasttiano/Blackbird.git/templates"
 	"go.uber.org/zap"
-	"io"
-	"net/http"
-	"time"
 )
 
 type ServerViews struct {

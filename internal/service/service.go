@@ -5,14 +5,17 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
+	"time"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
 	"github.com/sebasttiano/Blackbird.git/internal/repository"
 	"go.uber.org/zap"
-	"strconv"
-	"time"
 )
+
+//go:generate mockgen -source=service.go -destination=mocks/mock.go
 
 var ErrNotSupported = errors.New("service not supported")
 
