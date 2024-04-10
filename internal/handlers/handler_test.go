@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"github.com/sebasttiano/Blackbird.git/internal/repository"
 	"github.com/sebasttiano/Blackbird.git/internal/service"
 	"github.com/stretchr/testify/assert"
@@ -54,6 +55,7 @@ func TestUpdateMetric(t *testing.T) {
 }
 
 func BenchmarkHandler_sign(b *testing.B) {
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		sign("182f417b-f260-4b52-ab63-4a74cb7f0555", "oogheemeiS3ailiemaP1eeco9sodai")
 	}
@@ -77,4 +79,16 @@ func Test_sign(t *testing.T) {
 			assert.Equalf(t, tt.want, sign(tt.value, tt.key), "sign(%v, %v)", tt.value, tt.key)
 		})
 	}
+}
+
+func Example_sign() {
+	res1 := sign("example", "SECRET")
+	fmt.Println(res1)
+
+	res2 := sign("lllllllll", "SUPERSECRET")
+	fmt.Println(res2)
+
+	// Output:
+	// 800b896fe5bb8bce7d8a3d3dae28fbd4e8968cde2271449704645796902aed04
+	// 4e54afaf64269c1c0c1a0857c0066393eb14b1c63fc87dd66624dbd8acef6eb8
 }
