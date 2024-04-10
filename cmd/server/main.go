@@ -1,3 +1,4 @@
+// Package main серверная часть, поднимает Api, принимает и отдает метрики, хранит либо в БД, либо в памяти.
 package main
 
 import (
@@ -45,7 +46,7 @@ func main() {
 	}
 }
 
-// run init dependencies and starts http server
+// run инициализирует заисимости и запускает http сервер.
 func run(cfg config.Config) error {
 
 	serviceSettings := &service.ServiceSettings{SaveFilePath: cfg.FileStoragePath, Retries: cfg.RetriesDB, BackoffFactor: cfg.BackoffFactor}

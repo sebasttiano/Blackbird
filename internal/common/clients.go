@@ -11,17 +11,21 @@ import (
 	"go.uber.org/zap"
 )
 
+// HTTPClientErrors
+// Deprecated: не использовать
 type HTTPClientErrors struct {
 	ErrConnect error
 }
 
+// NewHTTPClientErrors
+// Deprecated: не использовать
 func NewHTTPClientErrors() HTTPClientErrors {
 	return HTTPClientErrors{
 		ErrConnect: errors.New("client couldn`t connect to server"),
 	}
 }
 
-// HTTPClient simple client
+// HTTPClient простой http клиент с ретраем
 type HTTPClient struct {
 	url          string
 	client       *http.Client
@@ -30,6 +34,7 @@ type HTTPClient struct {
 	ClientErrors HTTPClientErrors
 }
 
+// NewHTTPClient конструктор для HTTPClient
 func NewHTTPClient(url string, retries int, backoffFactor uint) HTTPClient {
 	var ri []uint
 	for i := 1; i <= retries; i++ {
@@ -38,7 +43,7 @@ func NewHTTPClient(url string, retries int, backoffFactor uint) HTTPClient {
 	return HTTPClient{url: url, client: &http.Client{}, retriesIn: ri, retries: retries, ClientErrors: NewHTTPClientErrors()}
 }
 
-// Post implements http post requests
+// Post метод совершает одноименные http запросы
 func (c HTTPClient) Post(urlSuffix string, body io.Reader, headers map[string]string) (*http.Response, error) {
 
 	r, err := http.NewRequest("POST", c.url+urlSuffix, body)

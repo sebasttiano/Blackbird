@@ -17,25 +17,31 @@ import (
 
 //go:generate mockgen -source=service.go -destination=mocks/mock.go
 
+// ErrNotSupported общая ошибка, если сервис не поддерживает действие.
 var ErrNotSupported = errors.New("service not supported")
 
+// ErrRetryDB тип реализующий интерфейс Error, записывает количество ретраев и заворачивает ошибку ф-ция.
 type ErrRetryDB struct {
 	Retries int
 	Err     error
 }
 
+// Error метод интерфейса записывает количество ретраев и оригинальную ошибку.
 func (e ErrRetryDB) Error() string {
 	return fmt.Sprintf("function failed after %d retries. last error was %v", e.Retries, e.Err)
 }
 
+// Unwrap метод интерфейса возвращает упакованную оригинальную ошибку.
 func (e ErrRetryDB) Unwrap() error {
 	return e.Err
 }
 
+// NewErrRetryDB конструктор для  ErrRetryDB
 func NewErrRetryDB(retries int, err error) *ErrRetryDB {
 	return &ErrRetryDB{retries, err}
 }
 
+// ServiceSettings настройки сервиса.
 type ServiceSettings struct {
 	SyncSave      bool
 	FileSave      bool
@@ -46,6 +52,7 @@ type ServiceSettings struct {
 	BackoffFactor uint
 }
 
+// Service реализует интерфейс MetricService.
 type Service struct {
 	Settings     *ServiceSettings
 	fileRestorer FileService
@@ -53,6 +60,7 @@ type Service struct {
 	retries      []uint
 }
 
+// NewService конструктор для Service.
 func NewService(serviceSettings *ServiceSettings, repo Repository) *Service {
 
 	var ri []uint
@@ -62,6 +70,7 @@ func NewService(serviceSettings *ServiceSettings, repo Repository) *Service {
 	return &Service{serviceSettings, NewFileHanlder(serviceSettings.SaveFilePath), repo, ri}
 }
 
+// MetricService интерфейс описывающий работу с метриками
 type MetricService interface {
 	GetValue(ctx context.Context, string, metricType string) (interface{}, error)
 	GetModelValue(ctx context.Context, metric *models.Metrics) error
@@ -72,6 +81,7 @@ type MetricService interface {
 	Restore() error
 }
 
+// Repository интерфейс описывающий сохранение и чтение метрик из хранилища.
 type Repository interface {
 	GetGauge(ctx context.Context, metric *repository.GaugeMetric) error
 	GetCounter(ctx context.Context, metric *repository.CounterMetric) error
@@ -81,7 +91,7 @@ type Repository interface {
 	RestoreAllMetrics(gauges map[string]float64, counters map[string]int64)
 }
 
-// GetValue returns either gauge or counter metrics
+// GetValue возвращает или Gauge, или Counter метрики.
 func (s *Service) GetValue(ctx context.Context, metricName string, metricType string) (interface{}, error) {
 
 	switch metricType {
@@ -112,6 +122,7 @@ func (s *Service) GetValue(ctx context.Context, metricName string, metricType st
 	}
 }
 
+// GetModelValue маппит данные из хранилища в структуру.
 func (s *Service) GetModelValue(ctx context.Context, metric *models.Metrics) error {
 
 	if metric.ID == "" {
@@ -134,7 +145,7 @@ func (s *Service) GetModelValue(ctx context.Context, metric *models.Metrics) err
 	return nil
 }
 
-// SetValue saves either gauge or counter metrics
+// SetValue сохраняет или Gauge, или Counter метрики.
 func (s *Service) SetValue(ctx context.Context, metricName string, metricType string, metricValue string) error {
 
 	switch metricType {
@@ -175,7 +186,7 @@ func (s *Service) SetValue(ctx context.Context, metricName string, metricType st
 	return nil
 }
 
-// SetModelValue saves either gauge or counter metrics from model
+// SetModelValue сохраняет или Gauge, или Counter метрики из моделек.
 func (s *Service) SetModelValue(ctx context.Context, metrics []*models.Metrics) error {
 
 	for _, metric := range metrics {
@@ -207,7 +218,7 @@ func (s *Service) SetModelValue(ctx context.Context, metrics []*models.Metrics) 
 	return nil
 }
 
-// GetAllValues get all metrics from db and returns in raw format
+// GetAllValues забирает все метрики из хранилища.
 func (s *Service) GetAllValues(ctx context.Context) (sm *repository.StoreMetrics) {
 
 	sm = &repository.StoreMetrics{Gauge: make([]repository.GaugeMetric, 0), Counter: make([]repository.CounterMetric, 0)}
@@ -218,6 +229,7 @@ func (s *Service) GetAllValues(ctx context.Context) (sm *repository.StoreMetrics
 	return sm
 }
 
+// Save сохраняет в хранилище, если оно типа repository.MemStorage.
 func (s *Service) Save() error {
 	switch s.repo.(type) {
 	case *repository.MemStorage:
@@ -247,6 +259,7 @@ func (s *Service) Save() error {
 	}
 }
 
+// Restore восстанавливает их хранилища, если оно типа repository.MemStorage.
 func (s *Service) Restore() error {
 	switch s.repo.(type) {
 	case *repository.MemStorage:
@@ -261,7 +274,7 @@ func (s *Service) Restore() error {
 	}
 }
 
-// Retry method repeat functions calls within retry delays, ignores sql.ErrNoRows
+// Retry метод повтора функций с задержками при повторных попытках, игнорирует sql.ErrNoRows
 func (s *Service) Retry(ctx context.Context, retryDelays []uint, f func(ctx context.Context) error) error {
 
 	var retries = len(retryDelays)

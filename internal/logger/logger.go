@@ -1,3 +1,4 @@
+// Package logger cинглтон для инициализации логгера.
 package logger
 
 import (

@@ -15,7 +15,7 @@ type app struct {
 	views   handlers.ServerViews
 }
 
-// конструктор app
+// newApp конструктор app
 func newApp() *app {
 	return &app{}
 }

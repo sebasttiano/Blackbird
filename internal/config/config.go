@@ -1,3 +1,5 @@
+// Package config парсит переменные окружения и флаги при запуске приложения. Приоритет у переменных окружения.
+// Генерирутеся объекты конфига для агента и сервера.
 package config
 
 import (
@@ -6,6 +8,7 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
+// Config содержит все передаваемые переменные нужные для приложения
 type Config struct {
 	ServerIPAddr    string `env:"ADDRESS"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
@@ -21,6 +24,7 @@ type Config struct {
 	BackoffFactor   uint
 }
 
+// NewAgentConfig конструктор для Config
 func NewAgentConfig() (Config, error) {
 
 	flags := parseAgentFlags()
@@ -56,7 +60,7 @@ func NewAgentConfig() (Config, error) {
 	return config, nil
 }
 
-// parseAgentFlags handles args of cli agent
+// parseAgentFlags считывает переменные с консоли для клиента
 func parseAgentFlags() Config {
 	// Parse from cli
 	serverIPAddr := flag.String("a", "localhost:8080", "address and port of metric repository server")
@@ -76,7 +80,7 @@ func parseAgentFlags() Config {
 	}
 }
 
-// NewServerConfig config constructor for server
+// NewServerConfig конструктор конфига для серверной части
 func NewServerConfig() (Config, error) {
 
 	flags := parseServerFlags()
@@ -113,7 +117,7 @@ func NewServerConfig() (Config, error) {
 	return config, nil
 }
 
-// parseServerFlags handles args cli for server
+// parseServerFlags считывает переменные с консоли для сервера
 func parseServerFlags() Config {
 	// Parse from cli
 	serverIPAddr := flag.String("a", "localhost:8080", "address and port to run server")

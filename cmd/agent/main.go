@@ -1,3 +1,4 @@
+// Package main Агент собирает с опеределенным интервалом метрики с локальной машины и пушит их с опереденным интерфвалом на сервер.
 package main
 
 import (
@@ -34,6 +35,7 @@ func main() {
 
 }
 
+// run запускает агента.
 func run(cfg config.Config) error {
 
 	logger.Log.Info(fmt.Sprintf("Running agent with poll interval %d and report interval %d\n", cfg.PollInterval, cfg.ReportInterval))
