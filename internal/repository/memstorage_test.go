@@ -48,7 +48,7 @@ func TestNewMemStorage(t *testing.T) {
 		{name: "Check counter value #2", metricName: "counter1", metricValue: 15, want: 25},
 	}
 
-	var localStorage *MemStorage = &MemStorage{
+	var localStorage = &MemStorage{
 		Gauge:   make(map[string]float64),
 		Counter: make(map[string]int64),
 	}

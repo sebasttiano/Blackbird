@@ -21,6 +21,7 @@ func TestParseTemplates(t *testing.T) {
 }
 
 func BenchmarkParseTemplates(b *testing.B) {
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		ParseTemplates()
 	}
