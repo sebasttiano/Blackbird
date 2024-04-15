@@ -41,6 +41,7 @@ func (s *ServerViews) InitRouter() chi.Router {
 
 	r.Use(middleware.RealIP)
 	r.Use(WithLogging, CheckSign(s.SignKey), GzipMiddleware)
+	r.Mount("/debug", middleware.Profiler())
 
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", s.MainHandle)

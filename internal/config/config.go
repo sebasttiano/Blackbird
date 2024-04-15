@@ -4,6 +4,7 @@ package config
 
 import (
 	"flag"
+	"sync"
 
 	"github.com/caarlos0/env/v6"
 )
@@ -22,6 +23,8 @@ type Config struct {
 	RateLimit       uint64 `env:"RATE_LIMIT"`
 	RetriesDB       uint
 	BackoffFactor   uint
+	Profiler        *bool `env:"PROFILER"`
+	WG              sync.WaitGroup
 }
 
 // NewAgentConfig конструктор для Config
@@ -57,6 +60,11 @@ func NewAgentConfig() (Config, error) {
 	if config.RateLimit == 0 {
 		config.RateLimit = flags.RateLimit
 	}
+
+	if config.Profiler == nil {
+		config.Profiler = flags.Profiler
+	}
+
 	return config, nil
 }
 
@@ -68,6 +76,7 @@ func parseAgentFlags() Config {
 	reportInterval := flag.Int64("r", 5, "interval in seconds between push requests to server")
 	flagSecretKey := flag.String("k", "", "secret key for digital signature")
 	flagRateLimit := flag.Uint64("l", 1, "number of simultaneous requests to server")
+	flagProfiler := flag.Bool("profiler", false, "enable profiler")
 
 	flag.Parse()
 
@@ -77,6 +86,7 @@ func parseAgentFlags() Config {
 		ReportInterval: *reportInterval,
 		SecretKey:      *flagSecretKey,
 		RateLimit:      *flagRateLimit,
+		Profiler:       flagProfiler,
 	}
 }
 

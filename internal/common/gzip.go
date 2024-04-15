@@ -2,8 +2,8 @@ package common
 
 import (
 	"bytes"
-	"compress/gzip"
 	"fmt"
+	"github.com/klauspost/compress/gzip"
 	"io"
 	"net/http"
 	"slices"
