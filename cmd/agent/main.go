@@ -30,7 +30,7 @@ func main() {
 	}
 
 	cfg.WG.Add(1)
-	go run(&cfg) // запускаем сервер
+	go run(cfg) // запускаем сервер
 
 	if *cfg.Profiler {
 		if err := http.ListenAndServe("localhost:8085", nil); err != nil {

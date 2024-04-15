@@ -28,13 +28,13 @@ type Config struct {
 }
 
 // NewAgentConfig конструктор для Config
-func NewAgentConfig() (Config, error) {
+func NewAgentConfig() (*Config, error) {
 
 	flags := parseAgentFlags()
 	config := Config{}
 
 	if err := env.Parse(&config); err != nil {
-		return Config{}, err
+		return &Config{}, err
 	}
 
 	if config.ServerIPAddr == "" {
@@ -65,7 +65,7 @@ func NewAgentConfig() (Config, error) {
 		config.Profiler = flags.Profiler
 	}
 
-	return config, nil
+	return &config, nil
 }
 
 // parseAgentFlags считывает переменные с консоли для клиента
@@ -91,13 +91,13 @@ func parseAgentFlags() Config {
 }
 
 // NewServerConfig конструктор конфига для серверной части
-func NewServerConfig() (Config, error) {
+func NewServerConfig() (*Config, error) {
 
 	flags := parseServerFlags()
 	config := Config{RetriesDB: 1, BackoffFactor: 1}
 
 	if err := env.Parse(&config); err != nil {
-		return Config{}, err
+		return &Config{}, err
 	}
 
 	if config.ServerIPAddr == "" {
@@ -124,7 +124,7 @@ func NewServerConfig() (Config, error) {
 		config.SecretKey = flags.SecretKey
 	}
 
-	return config, nil
+	return &config, nil
 }
 
 // parseServerFlags считывает переменные с консоли для сервера

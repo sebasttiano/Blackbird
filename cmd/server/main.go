@@ -47,7 +47,7 @@ func main() {
 }
 
 // run инициализирует заисимости и запускает http сервер.
-func run(cfg config.Config) error {
+func run(cfg *config.Config) error {
 
 	serviceSettings := &service.ServiceSettings{SaveFilePath: cfg.FileStoragePath, Retries: cfg.RetriesDB, BackoffFactor: cfg.BackoffFactor}
 	if cfg.DatabaseDSN != "" {
