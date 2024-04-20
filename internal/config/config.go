@@ -1,10 +1,15 @@
+// Package config парсит переменные окружения и флаги при запуске приложения. Приоритет у переменных окружения.
+// Генерирутеся объекты конфига для агента и сервера.
 package config
 
 import (
 	"flag"
+	"sync"
+
 	"github.com/caarlos0/env/v6"
 )
 
+// Config содержит все передаваемые переменные нужные для приложения
 type Config struct {
 	ServerIPAddr    string `env:"ADDRESS"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
@@ -18,15 +23,18 @@ type Config struct {
 	RateLimit       uint64 `env:"RATE_LIMIT"`
 	RetriesDB       uint
 	BackoffFactor   uint
+	Profiler        *bool `env:"PROFILER"`
+	WG              sync.WaitGroup
 }
 
-func NewAgentConfig() (Config, error) {
+// NewAgentConfig конструктор для Config
+func NewAgentConfig() (*Config, error) {
 
 	flags := parseAgentFlags()
 	config := Config{}
 
 	if err := env.Parse(&config); err != nil {
-		return Config{}, err
+		return &Config{}, err
 	}
 
 	if config.ServerIPAddr == "" {
@@ -52,10 +60,15 @@ func NewAgentConfig() (Config, error) {
 	if config.RateLimit == 0 {
 		config.RateLimit = flags.RateLimit
 	}
-	return config, nil
+
+	if config.Profiler == nil {
+		config.Profiler = flags.Profiler
+	}
+
+	return &config, nil
 }
 
-// parseAgentFlags handles args of cli agent
+// parseAgentFlags считывает переменные с консоли для клиента
 func parseAgentFlags() Config {
 	// Parse from cli
 	serverIPAddr := flag.String("a", "localhost:8080", "address and port of metric repository server")
@@ -63,6 +76,7 @@ func parseAgentFlags() Config {
 	reportInterval := flag.Int64("r", 5, "interval in seconds between push requests to server")
 	flagSecretKey := flag.String("k", "", "secret key for digital signature")
 	flagRateLimit := flag.Uint64("l", 1, "number of simultaneous requests to server")
+	flagProfiler := flag.Bool("profiler", false, "enable profiler")
 
 	flag.Parse()
 
@@ -72,17 +86,18 @@ func parseAgentFlags() Config {
 		ReportInterval: *reportInterval,
 		SecretKey:      *flagSecretKey,
 		RateLimit:      *flagRateLimit,
+		Profiler:       flagProfiler,
 	}
 }
 
-// NewServerConfig config constructor for server
-func NewServerConfig() (Config, error) {
+// NewServerConfig конструктор конфига для серверной части
+func NewServerConfig() (*Config, error) {
 
 	flags := parseServerFlags()
 	config := Config{RetriesDB: 1, BackoffFactor: 1}
 
 	if err := env.Parse(&config); err != nil {
-		return Config{}, err
+		return &Config{}, err
 	}
 
 	if config.ServerIPAddr == "" {
@@ -109,10 +124,10 @@ func NewServerConfig() (Config, error) {
 		config.SecretKey = flags.SecretKey
 	}
 
-	return config, nil
+	return &config, nil
 }
 
-// parseServerFlags handles args cli for server
+// parseServerFlags считывает переменные с консоли для сервера
 func parseServerFlags() Config {
 	// Parse from cli
 	serverIPAddr := flag.String("a", "localhost:8080", "address and port to run server")

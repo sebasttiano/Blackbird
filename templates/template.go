@@ -1,3 +1,4 @@
+// Package templates для работы с html шаблонами.
 package templates
 
 import (
@@ -7,10 +8,12 @@ import (
 	"runtime"
 )
 
+// HTMLTemplates хранит *template.Template.
 type HTMLTemplates struct {
 	IndexTemplate *template.Template
 }
 
+// ParseTemplates парсит шаблон html и возвращает HTMLTemplates.
 func ParseTemplates() HTMLTemplates {
 
 	ServerTemplates := HTMLTemplates{}

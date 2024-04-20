@@ -1,3 +1,4 @@
+// Package agent содержит основные структуры, типы и методы для работы компонента программы - агент.
 package agent
 
 import (
@@ -7,11 +8,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/sebasttiano/Blackbird.git/internal/common"
-	"github.com/sebasttiano/Blackbird.git/internal/logger"
-	"github.com/sebasttiano/Blackbird.git/internal/models"
-	"github.com/shirou/gopsutil/v3/mem"
-	"go.uber.org/zap"
 	"io"
 	"math/rand"
 	"reflect"
@@ -19,8 +15,15 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/sebasttiano/Blackbird.git/internal/common"
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
+	"github.com/sebasttiano/Blackbird.git/internal/models"
+	"github.com/shirou/gopsutil/v3/mem"
+	"go.uber.org/zap"
 )
 
+// MetricsSet - структура в которой перечислены основные runtime метрики приложения.
 type MetricsSet struct {
 	Alloc,
 	TotalAlloc,
@@ -53,12 +56,14 @@ type MetricsSet struct {
 	PollCount int64
 }
 
+// GopsutilMetricsSet - структура, которая содержит общее потребление ресурсов на хосте.
 type GopsutilMetricsSet struct {
 	TotalMemory,
 	FreeMemory,
 	CPUUtilization float64
 }
 
+// Agent - тип, который реализует сущность агент.
 type Agent struct {
 	getCounter int64
 	client     common.HTTPClient
@@ -69,6 +74,7 @@ type Agent struct {
 	WG         sync.WaitGroup
 }
 
+// NewAgent - конструктор для типа Agent.
 func NewAgent(serverAddr string, clientRetries int, backoffFactor uint, signKey string) *Agent {
 	getCounter := new(int64)
 	return &Agent{
@@ -78,7 +84,7 @@ func NewAgent(serverAddr string, clientRetries int, backoffFactor uint, signKey 
 	}
 }
 
-// GetMetrics collect runtime metrics
+// GetMetrics - метод для сбора runtime метрик приложения с определенным интервалом
 func (a *Agent) GetMetrics(ctx context.Context, getInterval time.Duration, jobs chan<- MetricsSet) {
 
 	defer close(jobs)
@@ -130,7 +136,7 @@ func (a *Agent) GetMetrics(ctx context.Context, getInterval time.Duration, jobs 
 
 }
 
-// GetGopsutilMetrics collect gopsutil metrics
+// GetGopsutilMetrics - метод для сбора утилизации ресурсов хоста с определенным интервалом.
 func (a *Agent) GetGopsutilMetrics(ctx context.Context, getInterval time.Duration, jobs chan<- GopsutilMetricsSet) {
 
 	defer close(jobs)
@@ -155,7 +161,7 @@ func (a *Agent) GetGopsutilMetrics(ctx context.Context, getInterval time.Duratio
 	}
 }
 
-// IterateStructFieldsAndSend prepares url with values and make post request to server
+// IterateStructFieldsAndSend - метод подготавливает вычитывает все типы метрик из каналов и через переданный интервал времени передает на сервер.
 func (a *Agent) IterateStructFieldsAndSend(ctx context.Context, sendInterval time.Duration, jobsMetrics <-chan MetricsSet, jobsGMetrics <-chan GopsutilMetricsSet) {
 
 	tick := time.NewTicker(sendInterval)

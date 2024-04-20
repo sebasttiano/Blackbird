@@ -1,18 +1,21 @@
+// Package main серверная часть, поднимает Api, принимает и отдает метрики, хранит либо в БД, либо в памяти.
 package main
 
 import (
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 	"github.com/sebasttiano/Blackbird.git/internal/config"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/service"
 	"go.uber.org/zap"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 )
 
 func main() {
@@ -43,8 +46,8 @@ func main() {
 	}
 }
 
-// run init dependencies and starts http server
-func run(cfg config.Config) error {
+// run инициализирует заисимости и запускает http сервер.
+func run(cfg *config.Config) error {
 
 	serviceSettings := &service.ServiceSettings{SaveFilePath: cfg.FileStoragePath, Retries: cfg.RetriesDB, BackoffFactor: cfg.BackoffFactor}
 	if cfg.DatabaseDSN != "" {

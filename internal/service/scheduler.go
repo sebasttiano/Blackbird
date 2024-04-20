@@ -1,10 +1,12 @@
 package service
 
 import (
-	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"time"
+
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
 )
 
+// TickerSaver через определенный интервал сохраняет данные в файл.
 func TickerSaver(ticker *time.Ticker, service *Service) {
 	for {
 		<-ticker.C

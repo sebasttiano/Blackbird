@@ -5,16 +5,17 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"github.com/sebasttiano/Blackbird.git/internal/common"
-	"github.com/sebasttiano/Blackbird.git/internal/logger"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/sebasttiano/Blackbird.git/internal/common"
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
+	"go.uber.org/zap"
 )
 
-// OnlyPostAllowed gets Handler, make validation on Post request and returns also Handler.
+// OnlyPostAllowed проверяет метод на POST
 func OnlyPostAllowed(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		// Only POST method allowed
@@ -26,7 +27,7 @@ func OnlyPostAllowed(next http.Handler) http.Handler {
 	})
 }
 
-// WithLogging - middleware that logs request and response params
+// WithLogging - логгирует все request запросы и response ответы
 func WithLogging(next http.Handler) http.Handler {
 	logFn := func(res http.ResponseWriter, req *http.Request) {
 
@@ -59,30 +60,32 @@ func WithLogging(next http.Handler) http.Handler {
 }
 
 type (
-	// for response data
+	// responseData хранит статус коди и размер ответа
 	responseData struct {
 		status int
 		size   int
 	}
-
+	// loggingResponseWriter реализует http.ResponseWriter и доп. данные для ответ
 	loggingResponseWriter struct {
 		http.ResponseWriter
 		responseData *responseData
 	}
 )
 
+// Write проксирует ответ и логгирует его
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
 	size, err := r.ResponseWriter.Write(b)
 	r.responseData.size += size
 	return size, err
 }
 
+// WriteHeader проксирует заголовки и логгирует код ответа
 func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.ResponseWriter.WriteHeader(statusCode)
 	r.responseData.status = statusCode
 }
 
-// GzipMiddleware handles compressed with gzip requests and responses
+// GzipMiddleware сжимает и распаковывает gzip данные из запроса и ответа
 func GzipMiddleware(next http.Handler) http.Handler {
 
 	gzipFn := func(res http.ResponseWriter, req *http.Request) {
@@ -115,6 +118,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(gzipFn)
 }
 
+// CheckSign проверяет цифровую подпись, если есть соответсвующий заголовок
 func CheckSign(key string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {

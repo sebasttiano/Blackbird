@@ -7,6 +7,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmoiron/sqlx"
@@ -15,11 +19,9 @@ import (
 	"github.com/sebasttiano/Blackbird.git/internal/service"
 	"github.com/sebasttiano/Blackbird.git/templates"
 	"go.uber.org/zap"
-	"io"
-	"net/http"
-	"time"
 )
 
+// ServerViews реализует методы-обработчики http запросов
 type ServerViews struct {
 	Service   *service.Service
 	templates templates.HTMLTemplates
@@ -27,16 +29,19 @@ type ServerViews struct {
 	SignKey   string
 }
 
+// NewServerViews конструктор для ServerViews
 func NewServerViews(service *service.Service) ServerViews {
 	return ServerViews{Service: service, templates: templates.ParseTemplates()}
 }
 
+// InitRouter метод инициализирующий роутер endpoint`ов
 func (s *ServerViews) InitRouter() chi.Router {
 
 	r := chi.NewRouter()
 
 	r.Use(middleware.RealIP)
 	r.Use(WithLogging, CheckSign(s.SignKey), GzipMiddleware)
+	r.Mount("/debug", middleware.Profiler())
 
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", s.MainHandle)
@@ -64,7 +69,7 @@ func (s *ServerViews) InitRouter() chi.Router {
 	return r
 }
 
-// MainHandle render html with all available metrics at the moment
+// MainHandle отристовывает главную html страницу с метриками
 func (s *ServerViews) MainHandle(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
@@ -77,8 +82,7 @@ func (s *ServerViews) MainHandle(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// GetMetric gets metric from repository via interface method and sends in a
-// response
+// GetMetric через сервис возвращает одну из типов метрик: counter или gauge
 func (s *ServerViews) GetMetric(res http.ResponseWriter, req *http.Request) {
 
 	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
@@ -101,8 +105,8 @@ func (s *ServerViews) GetMetric(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// GetMetricJSON gets metric from repository via interface method and sends in a model
-// response
+// GetMetricJSON через сервис возвращает одну из типов метрик: counter или gauge
+// в JSON виде
 func (s *ServerViews) GetMetricJSON(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "application/json")
@@ -138,7 +142,7 @@ func (s *ServerViews) GetMetricJSON(res http.ResponseWriter, req *http.Request) 
 	}
 }
 
-// UpdateMetric handles update metrics request
+// UpdateMetric передает в сервис на сохранение одну из типов метрик: counter или gauge
 func (s *ServerViews) UpdateMetric(res http.ResponseWriter, req *http.Request) {
 
 	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
@@ -154,7 +158,7 @@ func (s *ServerViews) UpdateMetric(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// UpdateMetricJSON handles update metrics request in json format
+// UpdateMetricJSON принимает в JSON передает в сервис на сохранение одну из типов метрик: counter или gauge
 func (s *ServerViews) UpdateMetricJSON(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "application/json")
@@ -187,7 +191,7 @@ func (s *ServerViews) UpdateMetricJSON(res http.ResponseWriter, req *http.Reques
 	}
 }
 
-// UpdateMetricsJSON handles batch with metrics
+// UpdateMetricsJSON принимает в JSON массив с одним из типов метрик: counter или gauge
 func (s *ServerViews) UpdateMetricsJSON(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 
@@ -217,7 +221,7 @@ func (s *ServerViews) UpdateMetricsJSON(res http.ResponseWriter, req *http.Reque
 	}
 }
 
-// PingDB checks connection to database
+// PingDB healthchecker базы данных
 func (s *ServerViews) PingDB(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 1*time.Second)
 	defer cancel()
@@ -227,7 +231,7 @@ func (s *ServerViews) PingDB(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// sign any string like object with hmac signature
+// sign подписывает цифровой подписью любую строку
 func sign(value any, key string) string {
 	b, err := json.Marshal(value)
 	if err != nil {

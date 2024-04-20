@@ -2,14 +2,16 @@ package common
 
 import (
 	"bytes"
-	"compress/gzip"
 	"fmt"
-	"github.com/sebasttiano/Blackbird.git/internal/logger"
+	"github.com/klauspost/compress/gzip"
 	"io"
 	"net/http"
 	"slices"
+
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
 )
 
+// compressedTypes типы Сontent-Type, которые разрешенно сжимать
 var compressedTypes = []string{
 	"application/json",
 	"text/html",
@@ -22,6 +24,7 @@ type GZIPWriter struct {
 	zw *gzip.Writer
 }
 
+// NewGZIPWriter конструктор для GZIPWriter
 func NewGZIPWriter(w http.ResponseWriter) *GZIPWriter {
 	return &GZIPWriter{
 		w:  w,
@@ -29,10 +32,12 @@ func NewGZIPWriter(w http.ResponseWriter) *GZIPWriter {
 	}
 }
 
+// Header метод возращает карту HTTP заголовков
 func (c *GZIPWriter) Header() http.Header {
 	return c.w.Header()
 }
 
+// Write отправляет сжатые данные
 func (c *GZIPWriter) Write(p []byte) (int, error) {
 	for _, t := range compressedTypes {
 		if slices.Contains(c.Header().Values("Content-Type"), t) {
@@ -43,6 +48,7 @@ func (c *GZIPWriter) Write(p []byte) (int, error) {
 	return c.w.Write(p)
 }
 
+// WriteHeader добавляет статус код в заголовки
 func (c *GZIPWriter) WriteHeader(statusCode int) {
 	if statusCode < 300 {
 		c.w.Header().Set("Content-Encoding", "gzip")
@@ -62,6 +68,7 @@ type GZIPReader struct {
 	zr *gzip.Reader
 }
 
+// NewZIPReader конструктор для GZIPReader
 func NewZIPReader(r io.ReadCloser) (*GZIPReader, error) {
 	zr, err := gzip.NewReader(r)
 	if err != nil {
@@ -74,10 +81,12 @@ func NewZIPReader(r io.ReadCloser) (*GZIPReader, error) {
 	}, nil
 }
 
+// Read считывает сжатые данные
 func (c GZIPReader) Read(p []byte) (n int, err error) {
 	return c.zr.Read(p)
 }
 
+// Close закрывает GZIPReader
 func (c *GZIPReader) Close() error {
 	if err := c.r.Close(); err != nil {
 		return err
