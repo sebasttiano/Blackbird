@@ -11,13 +11,13 @@ import (
 	"go.uber.org/zap"
 )
 
-// HTTPClientErrors
+// HTTPClientErrors структура со специфичнымы ошибками
 // Deprecated: не использовать
 type HTTPClientErrors struct {
 	ErrConnect error
 }
 
-// NewHTTPClientErrors
+// NewHTTPClientErrors конструктор для HTTPClientErrors
 // Deprecated: не использовать
 func NewHTTPClientErrors() HTTPClientErrors {
 	return HTTPClientErrors{

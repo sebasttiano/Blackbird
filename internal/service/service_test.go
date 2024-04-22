@@ -88,7 +88,7 @@ func ExampleService_GetAllValues() {
 	}
 
 	// Output:
-	// 300
 	// 23
+	// 300
 	// 31.36
 }
