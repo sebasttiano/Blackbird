@@ -137,7 +137,7 @@ func CheckSign(key string) func(next http.Handler) http.Handler {
 				return
 			}
 
-			if _, err := h.Write(b); err != nil {
+			if _, errWr := h.Write(b); errWr != nil {
 				logger.Log.Error("failed to write bytes to hmac")
 				http.Error(res, "internal server error", http.StatusInternalServerError)
 				return

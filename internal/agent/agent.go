@@ -221,7 +221,7 @@ func (a *Agent) IterateStructFieldsAndSend(ctx context.Context, sendInterval tim
 				if a.signKey != "" {
 					data := *compressedData
 					h := hmac.New(sha256.New, []byte(a.signKey))
-					if _, err := h.Write(data.Bytes()); err != nil {
+					if _, errWr := h.Write(data.Bytes()); errWr != nil {
 						logger.Log.Error("failed to create hmac signature")
 						continue
 					}

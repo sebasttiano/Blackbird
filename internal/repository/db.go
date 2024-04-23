@@ -16,19 +16,19 @@ import (
 
 // RetryError ошибка если все ретраи зафейлились
 type RetryError struct {
-	Err error
+	err error
 }
 
 // NewRetryError конструктор для RetryError
-func NewRetryError(retries int, Err error) *RetryError {
-	return &RetryError{Err: fmt.Errorf("function failed after %d retries. last error was %w", retries, Err)}
+func NewRetryError(retries int, err error) *RetryError {
+	return &RetryError{err: fmt.Errorf("function failed after %d retries. last error was %w", retries, err)}
 }
 func (re *RetryError) Error() string {
-	return fmt.Sprintf("%v", re.Err)
+	return fmt.Sprintf("%v", re.err)
 }
 
 func (re *RetryError) Unwrap() error {
-	return re.Err
+	return re.err
 }
 
 // pgError алиас для *pgconn.PgError
