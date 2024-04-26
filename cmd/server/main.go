@@ -2,12 +2,14 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
+	"text/template"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -18,7 +20,22 @@ import (
 	"go.uber.org/zap"
 )
 
+var buildVersion = "N/A"
+var buildDate = "N/A"
+var buildCommit = "N/A"
+
+type templateInfoEntry struct {
+	Version string
+	Date    string
+	Commit  string
+}
+
+//go:embed server_info.txt
+var serverInfo string
+
 func main() {
+	tmpl, err := template.New("info").Parse(serverInfo)
+	tmpl.Execute(os.Stdout, templateInfoEntry{buildVersion, buildDate, buildCommit})
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)

@@ -3,12 +3,15 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"go.uber.org/zap"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"os/signal"
 	"syscall"
+	"text/template"
 	"time"
 
 	"github.com/sebasttiano/Blackbird.git/internal/agent"
@@ -16,7 +19,22 @@ import (
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 )
 
+var buildVersion = "N/A"
+var buildDate = "N/A"
+var buildCommit = "N/A"
+
+type templateInfoEntry struct {
+	Version string
+	Date    string
+	Commit  string
+}
+
+//go:embed agent_info.txt
+var agentInfo string
+
 func main() {
+	tmpl, err := template.New("info").Parse(agentInfo)
+	tmpl.Execute(os.Stdout, templateInfoEntry{buildVersion, buildDate, buildCommit})
 
 	cfg, err := config.NewAgentConfig()
 	if err != nil {
