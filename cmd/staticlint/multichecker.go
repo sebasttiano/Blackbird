@@ -1,4 +1,5 @@
 // Package main multichecker собирает все анализаторы для совместного запуска
+// Для вызова проверок из корня проекта выполните: ./cmd/staticlint/staticlint ./...
 package main
 
 import (
@@ -26,9 +27,9 @@ const Config = `config.json`
 
 // ConfigData описывает структуру файла конфигурации.
 type ConfigData struct {
-	SimpleCheck []string `json:"simple"`
-	StyleCheck  []string
-	QuickFix    []string
+	SimpleCheck []string `json:"simple"` // компоненты проверяющие код на предмет упрощения
+	StyleCheck  []string // компоненты проверяющие код на стили
+	QuickFix    []string // компоненты, которые используются как часть gopls для автоматической рефакторинга
 }
 
 func main() {
@@ -49,12 +50,12 @@ func main() {
 	}
 
 	mychecks := []*analysis.Analyzer{
-		osexitanalyzer.OsExitAnalyzer,
-		printf.Analyzer,
-		shadow.Analyzer,
-		structtag.Analyzer,
-		ineffassign.Analyzer,
-		gocritic.Analyzer,
+		osexitanalyzer.OsExitAnalyzer, // проверяет что в ф-ции main не используется os.Exit()
+		printf.Analyzer,               // проверяет согласованность строк и аргументов формата Printf
+		shadow.Analyzer,               // проверяет, нет ли возможного непреднамеренного затенения переменных
+		structtag.Analyzer,            // проверяет правильность формирования тегов структурных полей
+		ineffassign.Analyzer,          // обнаруживает неэффективные значений в коде Go
+		gocritic.Analyzer,             // линтер, предоставляющий проверки, отсутствующие в настоящее время в других линтерах
 	}
 
 	checks := make(map[string]bool)
