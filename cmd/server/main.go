@@ -35,6 +35,9 @@ var serverInfo string
 
 func main() {
 	tmpl, err := template.New("info").Parse(serverInfo)
+	if err != nil {
+		fmt.Printf("failed to render banner: %v", err)
+	}
 	tmpl.Execute(os.Stdout, templateInfoEntry{buildVersion, buildDate, buildCommit})
 
 	done := make(chan os.Signal, 1)

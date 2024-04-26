@@ -34,6 +34,9 @@ var agentInfo string
 
 func main() {
 	tmpl, err := template.New("info").Parse(agentInfo)
+	if err != nil {
+		fmt.Printf("failed to render banner: %v", err)
+	}
 	tmpl.Execute(os.Stdout, templateInfoEntry{buildVersion, buildDate, buildCommit})
 
 	cfg, err := config.NewAgentConfig()
