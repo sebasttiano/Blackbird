@@ -1,3 +1,4 @@
+// Package main multichecker собирает все анализаторы для совместного запуска
 package main
 
 import (
