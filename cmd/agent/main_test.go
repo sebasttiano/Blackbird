@@ -14,7 +14,6 @@ import (
 )
 
 func TestGetMetrics(t *testing.T) {
-
 	views := handlers.NewServerViews(service.NewService(&service.ServiceSettings{}, repository.NewMemStorage()))
 	router := views.InitRouter()
 	server := httptest.NewServer(router)

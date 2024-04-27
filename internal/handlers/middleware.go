@@ -30,7 +30,6 @@ func OnlyPostAllowed(next http.Handler) http.Handler {
 // WithLogging - логгирует все request запросы и response ответы
 func WithLogging(next http.Handler) http.Handler {
 	logFn := func(res http.ResponseWriter, req *http.Request) {
-
 		start := time.Now()
 
 		responseData := &responseData{
@@ -54,7 +53,6 @@ func WithLogging(next http.Handler) http.Handler {
 			zap.Duration("duration", duration),
 			zap.Int("size", responseData.size),
 		)
-
 	}
 	return http.HandlerFunc(logFn)
 }
@@ -87,11 +85,8 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 
 // GzipMiddleware сжимает и распаковывает gzip данные из запроса и ответа
 func GzipMiddleware(next http.Handler) http.Handler {
-
 	gzipFn := func(res http.ResponseWriter, req *http.Request) {
-
 		ow := res
-
 		acceptEncoding := req.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
 		if supportsGzip {

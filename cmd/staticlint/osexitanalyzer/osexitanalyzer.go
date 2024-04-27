@@ -15,7 +15,6 @@ var OsExitAnalyzer = &analysis.Analyzer{
 
 // run запуск анализатора
 func run(pass *analysis.Pass) (interface{}, error) {
-
 	checkExit := func(f *ast.FuncDecl) {
 		for _, stmt := range f.Body.List {
 			stmt, ok := stmt.(*ast.ExprStmt)

@@ -86,7 +86,6 @@ func NewAgent(serverAddr string, clientRetries int, backoffFactor uint, signKey 
 
 // GetMetrics - метод для сбора runtime метрик приложения с определенным интервалом
 func (a *Agent) GetMetrics(ctx context.Context, getInterval time.Duration, jobs chan<- MetricsSet) {
-
 	defer close(jobs)
 	tick := time.NewTicker(getInterval)
 
@@ -133,12 +132,10 @@ func (a *Agent) GetMetrics(ctx context.Context, getInterval time.Duration, jobs 
 			return
 		}
 	}
-
 }
 
 // GetGopsutilMetrics - метод для сбора утилизации ресурсов хоста с определенным интервалом.
 func (a *Agent) GetGopsutilMetrics(ctx context.Context, getInterval time.Duration, jobs chan<- GopsutilMetricsSet) {
-
 	defer close(jobs)
 	tick := time.NewTicker(getInterval)
 
@@ -163,7 +160,6 @@ func (a *Agent) GetGopsutilMetrics(ctx context.Context, getInterval time.Duratio
 
 // IterateStructFieldsAndSend - метод подготавливает вычитывает все типы метрик из каналов и через переданный интервал времени передает на сервер.
 func (a *Agent) IterateStructFieldsAndSend(ctx context.Context, sendInterval time.Duration, jobsMetrics <-chan MetricsSet, jobsGMetrics <-chan GopsutilMetricsSet) {
-
 	tick := time.NewTicker(sendInterval)
 
 	for {
@@ -193,7 +189,6 @@ func (a *Agent) IterateStructFieldsAndSend(ctx context.Context, sendInterval tim
 					counterVal := fieldValue.Int()
 					metrics.Delta = &counterVal
 					metrics.MType = "counter"
-
 				} else {
 					gaugeVal := fieldValue.Float()
 					metrics.Value = &gaugeVal

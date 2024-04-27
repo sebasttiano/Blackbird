@@ -12,7 +12,6 @@ import (
 )
 
 func TestUpdateMetric(t *testing.T) {
-
 	tests := []struct {
 		name         string
 		method       string
@@ -62,7 +61,6 @@ func BenchmarkHandler_sign(b *testing.B) {
 }
 
 func Test_sign(t *testing.T) {
-
 	tests := []struct {
 		name  string
 		value any

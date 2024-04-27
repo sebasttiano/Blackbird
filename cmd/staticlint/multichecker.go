@@ -8,6 +8,7 @@ import (
 	"github.com/gordonklaus/ineffassign/pkg/ineffassign"
 	"github.com/sebasttiano/Blackbird.git/cmd/staticlint/osexitanalyzer"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
+	"github.com/ultraware/whitespace"
 	"go.uber.org/zap"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
@@ -56,6 +57,7 @@ func main() {
 		structtag.Analyzer,            // проверяет правильность формирования тегов структурных полей
 		ineffassign.Analyzer,          // обнаруживает неэффективные значений в коде Go
 		gocritic.Analyzer,             // линтер, предоставляющий проверки, отсутствующие в настоящее время в других линтерах
+		whitespace.NewAnalyzer(&whitespace.Settings{Mode: 0, MultiFunc: true, MultiIf: true}),
 	}
 
 	checks := make(map[string]bool)

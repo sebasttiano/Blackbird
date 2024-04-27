@@ -15,7 +15,6 @@ type HTMLTemplates struct {
 
 // ParseTemplates парсит шаблон html и возвращает HTMLTemplates.
 func ParseTemplates() HTMLTemplates {
-
 	ServerTemplates := HTMLTemplates{}
 	var err error
 	var (

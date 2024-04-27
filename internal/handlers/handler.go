@@ -36,7 +36,6 @@ func NewServerViews(service *service.Service) ServerViews {
 
 // InitRouter метод инициализирующий роутер endpoint`ов
 func (s *ServerViews) InitRouter() chi.Router {
-
 	r := chi.NewRouter()
 
 	r.Use(middleware.RealIP)
@@ -84,7 +83,6 @@ func (s *ServerViews) MainHandle(res http.ResponseWriter, req *http.Request) {
 
 // GetMetric через сервис возвращает одну из типов метрик: counter или gauge
 func (s *ServerViews) GetMetric(res http.ResponseWriter, req *http.Request) {
-
 	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
 
@@ -96,7 +94,6 @@ func (s *ServerViews) GetMetric(res http.ResponseWriter, req *http.Request) {
 		logger.Log.Error("couldn`t find requested metric. ", zap.Error(err))
 		http.Error(res, err.Error(), http.StatusNotFound)
 	} else {
-
 		if s.SignKey != "" {
 			res.Header().Add("HashSHA256", sign(value, s.SignKey))
 		}
@@ -108,7 +105,6 @@ func (s *ServerViews) GetMetric(res http.ResponseWriter, req *http.Request) {
 // GetMetricJSON через сервис возвращает одну из типов метрик: counter или gauge
 // в JSON виде
 func (s *ServerViews) GetMetricJSON(res http.ResponseWriter, req *http.Request) {
-
 	res.Header().Set("Content-Type", "application/json")
 	if req.Header.Get("Content-Type") != "application/json" {
 		logger.Log.Error("got request with wrong header", zap.String("Content-Type", req.Header.Get("Content-Type")))
@@ -144,7 +140,6 @@ func (s *ServerViews) GetMetricJSON(res http.ResponseWriter, req *http.Request) 
 
 // UpdateMetric передает в сервис на сохранение одну из типов метрик: counter или gauge
 func (s *ServerViews) UpdateMetric(res http.ResponseWriter, req *http.Request) {
-
 	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()
 
@@ -160,9 +155,7 @@ func (s *ServerViews) UpdateMetric(res http.ResponseWriter, req *http.Request) {
 
 // UpdateMetricJSON принимает в JSON передает в сервис на сохранение одну из типов метрик: counter или gauge
 func (s *ServerViews) UpdateMetricJSON(res http.ResponseWriter, req *http.Request) {
-
 	res.Header().Set("Content-Type", "application/json")
-
 	if req.Header.Get("Content-Type") != "application/json" {
 		logger.Log.Error("got request with wrong header", zap.String("Content-Type", req.Header.Get("Content-Type")))
 		http.Error(res, "error: check your header Content-Type", http.StatusBadRequest)

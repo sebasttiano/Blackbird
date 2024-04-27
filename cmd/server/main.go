@@ -68,7 +68,6 @@ func main() {
 
 // run инициализирует заисимости и запускает http сервер.
 func run(cfg *config.Config) error {
-
 	serviceSettings := &service.ServiceSettings{SaveFilePath: cfg.FileStoragePath, Retries: cfg.RetriesDB, BackoffFactor: cfg.BackoffFactor}
 	if cfg.DatabaseDSN != "" {
 		var conn *sqlx.DB
@@ -106,5 +105,4 @@ func run(cfg *config.Config) error {
 
 	logger.Log.Info("Running server", zap.String("address", cfg.ServerIPAddr))
 	return http.ListenAndServe(cfg.ServerIPAddr, currentApp.views.InitRouter())
-
 }

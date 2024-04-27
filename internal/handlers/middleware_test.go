@@ -44,7 +44,6 @@ func TestOnlyPostAllowed(t *testing.T) {
 }
 
 func TestGzipMiddleware(t *testing.T) {
-
 	views := NewServerViews(service.NewService(&service.ServiceSettings{SyncSave: false}, repository.NewMemStorage()))
 	srv := httptest.NewServer(views.InitRouter())
 	defer srv.Close()
@@ -81,7 +80,6 @@ func TestGzipMiddleware(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			r := httptest.NewRequest(tt.method, srv.URL+tt.requestURL, nil)
 			r.RequestURI = ""
 			r.Header.Set("Accept-Encoding", "gzip")
@@ -94,7 +92,6 @@ func TestGzipMiddleware(t *testing.T) {
 
 			_, err = io.ReadAll(resp.Body)
 			require.NoError(t, err)
-
 		})
 	}
 }

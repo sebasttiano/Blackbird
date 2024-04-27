@@ -53,7 +53,6 @@ func (g *MemStorage) SetCounter(ctx context.Context, metric *CounterMetric) erro
 
 // GetAllMetrics метод возвращает все метрики из памяти.
 func (g *MemStorage) GetAllMetrics(ctx context.Context, s *StoreMetrics) error {
-
 	for key, value := range g.Gauge {
 		s.Gauge = append(s.Gauge, GaugeMetric{Name: key, Value: value})
 	}

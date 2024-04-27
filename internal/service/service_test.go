@@ -33,7 +33,6 @@ func ExampleService_GetValue() {
 	// 50
 	// 150
 	// strconv.ParseInt: parsing "asd": invalid syntax
-
 }
 
 func ExampleService_GetModelValue() {

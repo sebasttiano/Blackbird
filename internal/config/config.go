@@ -29,7 +29,6 @@ type Config struct {
 
 // NewAgentConfig конструктор для Config
 func NewAgentConfig() (*Config, error) {
-
 	flags := parseAgentFlags()
 	config := Config{}
 
@@ -92,7 +91,6 @@ func parseAgentFlags() Config {
 
 // NewServerConfig конструктор конфига для серверной части
 func NewServerConfig() (*Config, error) {
-
 	flags := parseServerFlags()
 	config := Config{RetriesDB: 1, BackoffFactor: 1}
 
