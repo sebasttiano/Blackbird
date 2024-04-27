@@ -16,19 +16,19 @@ import (
 
 // RetryError ошибка если все ретраи зафейлились
 type RetryError struct {
-	Err error
+	err error
 }
 
 // NewRetryError конструктор для RetryError
-func NewRetryError(retries int, Err error) *RetryError {
-	return &RetryError{Err: fmt.Errorf("function failed after %d retries. last error was %w", retries, Err)}
+func NewRetryError(retries int, err error) *RetryError {
+	return &RetryError{err: fmt.Errorf("function failed after %d retries. last error was %w", retries, err)}
 }
 func (re *RetryError) Error() string {
-	return fmt.Sprintf("%v", re.Err)
+	return fmt.Sprintf("%v", re.err)
 }
 
 func (re *RetryError) Unwrap() error {
-	return re.Err
+	return re.err
 }
 
 // pgError алиас для *pgconn.PgError
@@ -44,7 +44,6 @@ type DBStorage struct {
 
 // NewDBStorage конструктор для DBStorage, с ф-цией проверки и восстановления схемы БД.
 func NewDBStorage(c *sqlx.DB, bootstrap bool) (*DBStorage, error) {
-
 	db := &DBStorage{conn: c}
 	if bootstrap {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -67,7 +66,6 @@ func NewDBStorage(c *sqlx.DB, bootstrap bool) (*DBStorage, error) {
 
 // GetGauge метод из БД возвращает сохраненную метрику типа Gauge.
 func (d *DBStorage) GetGauge(ctx context.Context, metric *GaugeMetric) error {
-
 	sqlQuery := `SELECT id, name, gauge FROM gauge_metrics WHERE name = $1`
 
 	if err := d.conn.GetContext(ctx, metric, sqlQuery, metric.Name); err != nil {
@@ -82,7 +80,6 @@ func (d *DBStorage) GetGauge(ctx context.Context, metric *GaugeMetric) error {
 
 // GetCounter метод из БД возвращает сохраненную метрику типа Counter.
 func (d *DBStorage) GetCounter(ctx context.Context, metric *CounterMetric) error {
-
 	sqlSelect := `SELECT id, name, counter FROM counter_metrics WHERE name = $1`
 
 	if err := d.conn.GetContext(ctx, metric, sqlSelect, metric.Name); err != nil {
@@ -97,7 +94,6 @@ func (d *DBStorage) GetCounter(ctx context.Context, metric *CounterMetric) error
 
 // SetGauge метод сохраняет в БД метрику типа Gauge.
 func (d *DBStorage) SetGauge(ctx context.Context, metric *GaugeMetric) error {
-
 	tx, err := d.conn.Beginx()
 	if err != nil {
 		return err
@@ -118,7 +114,6 @@ func (d *DBStorage) SetGauge(ctx context.Context, metric *GaugeMetric) error {
 
 // SetCounter метод сохоаняет в БД метрику типа Counter.
 func (d *DBStorage) SetCounter(ctx context.Context, metric *CounterMetric) error {
-
 	tx, err := d.conn.Beginx()
 	if err != nil {
 		return err
@@ -139,7 +134,6 @@ func (d *DBStorage) SetCounter(ctx context.Context, metric *CounterMetric) error
 
 // GetAllMetrics метод возвращает все метрики из БД
 func (d *DBStorage) GetAllMetrics(ctx context.Context, sm *StoreMetrics) error {
-
 	var allGauges []GaugeMetric
 	var allCounters []CounterMetric
 
@@ -162,7 +156,6 @@ func (d *DBStorage) RestoreAllMetrics(gauges map[string]float64, counters map[st
 
 // Bootstrap проверяет бд и создает, если надо, необходимые таблицы и типы.
 func (d *DBStorage) Bootstrap(ctx context.Context) error {
-
 	logger.Log.Debug("checking db tables")
 	tx, err := d.conn.BeginTx(ctx, nil)
 	if err != nil {

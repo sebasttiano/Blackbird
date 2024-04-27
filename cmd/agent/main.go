@@ -3,12 +3,15 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"go.uber.org/zap"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"os/signal"
 	"syscall"
+	"text/template"
 	"time"
 
 	"github.com/sebasttiano/Blackbird.git/internal/agent"
@@ -16,7 +19,25 @@ import (
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 )
 
+var buildVersion = "N/A"
+var buildDate = "N/A"
+var buildCommit = "N/A"
+
+type templateInfoEntry struct {
+	Version string
+	Date    string
+	Commit  string
+}
+
+//go:embed agent_info.txt
+var agentInfo string
+
 func main() {
+	tmpl, err := template.New("info").Parse(agentInfo)
+	if err != nil {
+		fmt.Printf("failed to render banner: %v", err)
+	}
+	tmpl.Execute(os.Stdout, templateInfoEntry{buildVersion, buildDate, buildCommit})
 
 	cfg, err := config.NewAgentConfig()
 	if err != nil {
@@ -42,7 +63,6 @@ func main() {
 
 // run запускает агента.
 func run(cfg *config.Config) error {
-
 	logger.Log.Info(fmt.Sprintf("Running agent with poll interval %d and report interval %d\n", cfg.PollInterval, cfg.ReportInterval))
 	logger.Log.Info(fmt.Sprintf("Metric repository server address is set to %s\n", cfg.ServerIPAddr))
 	a := agent.NewAgent("http://"+cfg.ServerIPAddr, 3, 1, cfg.SecretKey)

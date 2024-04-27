@@ -62,7 +62,6 @@ type Service struct {
 
 // NewService конструктор для Service.
 func NewService(serviceSettings *ServiceSettings, repo Repository) *Service {
-
 	var ri []uint
 	for i := 1; i <= int(serviceSettings.Retries); i++ {
 		ri = append(ri, serviceSettings.BackoffFactor*uint(i)-1)
@@ -93,7 +92,6 @@ type Repository interface {
 
 // GetValue возвращает или Gauge, или Counter метрики.
 func (s *Service) GetValue(ctx context.Context, metricName string, metricType string) (interface{}, error) {
-
 	switch metricType {
 	case "gauge":
 		m := repository.GaugeMetric{Name: metricName}
@@ -124,7 +122,6 @@ func (s *Service) GetValue(ctx context.Context, metricName string, metricType st
 
 // GetModelValue маппит данные из хранилища в структуру.
 func (s *Service) GetModelValue(ctx context.Context, metric *models.Metrics) error {
-
 	if metric.ID == "" {
 		return errors.New("name of the metric is required")
 	}
@@ -147,7 +144,6 @@ func (s *Service) GetModelValue(ctx context.Context, metric *models.Metrics) err
 
 // SetValue сохраняет или Gauge, или Counter метрики.
 func (s *Service) SetValue(ctx context.Context, metricName string, metricType string, metricValue string) error {
-
 	switch metricType {
 	case "gauge":
 		valueFloat, err := strconv.ParseFloat(metricValue, 64)
@@ -188,9 +184,7 @@ func (s *Service) SetValue(ctx context.Context, metricName string, metricType st
 
 // SetModelValue сохраняет или Gauge, или Counter метрики из моделек.
 func (s *Service) SetModelValue(ctx context.Context, metrics []*models.Metrics) error {
-
 	for _, metric := range metrics {
-
 		if metric.ID == "" {
 			return errors.New("name of the metric is required")
 		}
@@ -220,7 +214,6 @@ func (s *Service) SetModelValue(ctx context.Context, metrics []*models.Metrics) 
 
 // GetAllValues забирает все метрики из хранилища.
 func (s *Service) GetAllValues(ctx context.Context) (sm *repository.StoreMetrics) {
-
 	sm = &repository.StoreMetrics{Gauge: make([]repository.GaugeMetric, 0), Counter: make([]repository.CounterMetric, 0)}
 
 	s.Retry(ctx, s.retries, func(ctx context.Context) error {
@@ -276,7 +269,6 @@ func (s *Service) Restore() error {
 
 // Retry метод повтора функций с задержками при повторных попытках, игнорирует sql.ErrNoRows
 func (s *Service) Retry(ctx context.Context, retryDelays []uint, f func(ctx context.Context) error) error {
-
 	var retries = len(retryDelays)
 	for _, delay := range retryDelays {
 		select {

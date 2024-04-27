@@ -1,0 +1,6 @@
+Blackbird app. Agent component.
+
+Build version: {{.Version}}
+Build date: {{.Date}}
+Build commit: {{.Commit}}
+

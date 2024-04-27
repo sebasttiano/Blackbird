@@ -2,12 +2,14 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
+	"text/template"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -18,7 +20,25 @@ import (
 	"go.uber.org/zap"
 )
 
+var buildVersion = "N/A"
+var buildDate = "N/A"
+var buildCommit = "N/A"
+
+type templateInfoEntry struct {
+	Version string
+	Date    string
+	Commit  string
+}
+
+//go:embed server_info.txt
+var serverInfo string
+
 func main() {
+	tmpl, err := template.New("info").Parse(serverInfo)
+	if err != nil {
+		fmt.Printf("failed to render banner: %v", err)
+	}
+	tmpl.Execute(os.Stdout, templateInfoEntry{buildVersion, buildDate, buildCommit})
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
@@ -48,7 +68,6 @@ func main() {
 
 // run инициализирует заисимости и запускает http сервер.
 func run(cfg *config.Config) error {
-
 	serviceSettings := &service.ServiceSettings{SaveFilePath: cfg.FileStoragePath, Retries: cfg.RetriesDB, BackoffFactor: cfg.BackoffFactor}
 	if cfg.DatabaseDSN != "" {
 		var conn *sqlx.DB
@@ -86,5 +105,4 @@ func run(cfg *config.Config) error {
 
 	logger.Log.Info("Running server", zap.String("address", cfg.ServerIPAddr))
 	return http.ListenAndServe(cfg.ServerIPAddr, currentApp.views.InitRouter())
-
 }

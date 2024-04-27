@@ -45,7 +45,6 @@ func NewHTTPClient(url string, retries int, backoffFactor uint) HTTPClient {
 
 // Post метод совершает одноименные http запросы
 func (c HTTPClient) Post(urlSuffix string, body io.Reader, headers map[string]string) (*http.Response, error) {
-
 	r, err := http.NewRequest("POST", c.url+urlSuffix, body)
 	if err != nil {
 		logger.Log.Debug("failed to make http request", zap.Error(err))

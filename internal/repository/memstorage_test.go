@@ -73,6 +73,5 @@ func TestNewMemStorage(t *testing.T) {
 			require.NoErrorf(t, err, "error returned by GetCounter method. params: type %d", tt.metricValue)
 			assert.Equal(t, fmt.Sprintf("%v", tt.want), fmt.Sprintf("%v", m.Value), "returned value not equal to expected")
 		})
-
 	}
 }

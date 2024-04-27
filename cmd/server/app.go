@@ -22,7 +22,6 @@ func newApp() *app {
 
 // Initialize принимает на вход внешние зависимости приложения и инициализирует его
 func (a *app) Initialize(s *service.ServiceSettings, key string) error {
-
 	var err error
 	var repo service.Repository
 
@@ -32,7 +31,6 @@ func (a *app) Initialize(s *service.ServiceSettings, key string) error {
 		if err != nil {
 			return err
 		}
-
 	} else {
 		logger.Log.Info("init mem repository")
 		repo = repository.NewMemStorage()
