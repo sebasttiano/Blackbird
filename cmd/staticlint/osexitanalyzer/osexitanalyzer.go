@@ -18,14 +18,20 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	checkExit := func(f *ast.FuncDecl) {
 		for _, stmt := range f.Body.List {
-			if stmt, ok := stmt.(*ast.ExprStmt); ok {
-				if call, ok := stmt.X.(*ast.CallExpr); ok {
-					if selector, ok := call.Fun.(*ast.SelectorExpr); ok {
-						if selector.Sel.Name == "Exit" {
-							pass.Reportf(selector.Sel.NamePos, "call of exit func in main")
-						}
-					}
-				}
+			stmt, ok := stmt.(*ast.ExprStmt)
+			if !ok {
+				continue
+			}
+			call, ok := stmt.X.(*ast.CallExpr)
+			if !ok {
+				continue
+			}
+			selector, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok {
+				continue
+			}
+			if selector.Sel.Name == "Exit" {
+				pass.Reportf(selector.Sel.NamePos, "call of exit func in main")
 			}
 		}
 	}
