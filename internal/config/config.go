@@ -21,6 +21,7 @@ type Config struct {
 	PollInterval    int64  `env:"POLL_INTERVAL"`
 	ReportInterval  int64  `env:"REPORT_INTERVAL"`
 	RateLimit       uint64 `env:"RATE_LIMIT"`
+	CryptoKey       string `env:"CRYPTO_KEY"`
 	RetriesDB       uint
 	BackoffFactor   uint
 	Profiler        *bool `env:"PROFILER"`
@@ -64,6 +65,10 @@ func NewAgentConfig() (*Config, error) {
 		config.Profiler = flags.Profiler
 	}
 
+	if config.CryptoKey == "" {
+		config.CryptoKey = flags.CryptoKey
+	}
+
 	return &config, nil
 }
 
@@ -76,6 +81,7 @@ func parseAgentFlags() Config {
 	flagSecretKey := flag.String("k", "", "secret key for digital signature")
 	flagRateLimit := flag.Uint64("l", 1, "number of simultaneous requests to server")
 	flagProfiler := flag.Bool("profiler", false, "enable profiler")
+	flagCryptoKey := flag.String("crypto-key", "", "path to file with public key")
 
 	flag.Parse()
 
@@ -86,6 +92,7 @@ func parseAgentFlags() Config {
 		SecretKey:      *flagSecretKey,
 		RateLimit:      *flagRateLimit,
 		Profiler:       flagProfiler,
+		CryptoKey:      *flagCryptoKey,
 	}
 }
 
@@ -122,6 +129,10 @@ func NewServerConfig() (*Config, error) {
 		config.SecretKey = flags.SecretKey
 	}
 
+	if config.CryptoKey == "" {
+		config.CryptoKey = flags.CryptoKey
+	}
+
 	return &config, nil
 }
 
@@ -134,6 +145,7 @@ func parseServerFlags() Config {
 	restoreOnStart := flag.Bool("r", true, "restore saved metrics on start")
 	databaseDSN := flag.String("d", "", "database host connect to, user and password")
 	secretKey := flag.String("k", "", "secret key for digital signature")
+	cryptoKey := flag.String("crypto-key", "", "path to file with private key")
 
 	flag.Parse()
 
@@ -144,5 +156,6 @@ func parseServerFlags() Config {
 		RestoreMetrics:  restoreOnStart,
 		DatabaseDSN:     *databaseDSN,
 		SecretKey:       *secretKey,
+		CryptoKey:       *cryptoKey,
 	}
 }

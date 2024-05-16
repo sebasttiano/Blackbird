@@ -69,18 +69,20 @@ type Agent struct {
 	client     common.HTTPClient
 	rtm        runtime.MemStats
 	signKey    string
+	publicKey  string
 	Metrics    MetricsSet
 	GMetrics   GopsutilMetricsSet
 	WG         sync.WaitGroup
 }
 
 // NewAgent - конструктор для типа Agent.
-func NewAgent(serverAddr string, clientRetries int, backoffFactor uint, signKey string) *Agent {
+func NewAgent(serverAddr string, clientRetries int, backoffFactor uint, signKey string, publicKey string) *Agent {
 	getCounter := new(int64)
 	return &Agent{
 		getCounter: *getCounter,
 		client:     common.NewHTTPClient(serverAddr, clientRetries, backoffFactor),
 		signKey:    signKey,
+		publicKey:  publicKey,
 	}
 }
 

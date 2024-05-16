@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
@@ -111,6 +112,34 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(ow, req)
 	}
 	return http.HandlerFunc(gzipFn)
+}
+
+// WithRSADecryption decrypts incoming requests body
+func WithRSADecryption(priv *rsa.PrivateKey) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		encFn := func(res http.ResponseWriter, req *http.Request) {
+			if priv == nil {
+				next.ServeHTTP(res, req)
+				return
+			}
+
+			b, err := io.ReadAll(req.Body)
+			if err != nil {
+				logger.Log.Error("failed to read request body")
+				http.Error(res, "failed to read request body, check your request", http.StatusBadRequest)
+				return
+			}
+
+			decrypted, err := common.DecryptRSA(string(b), priv)
+			if err != nil {
+				logger.Log.Error("failed to decrypt request")
+				http.Error(res, "failed to decrypt request, check your request", http.StatusBadRequest)
+			}
+			req.Body = io.NopCloser(bytes.NewBufferString(decrypted))
+			next.ServeHTTP(res, req)
+		}
+		return http.HandlerFunc(encFn)
+	}
 }
 
 // CheckSign проверяет цифровую подпись, если есть соответсвующий заголовок

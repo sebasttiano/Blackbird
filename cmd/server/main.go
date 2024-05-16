@@ -87,7 +87,16 @@ func run(cfg *config.Config) error {
 		serviceSettings.SyncSave = true
 	}
 
-	if err := currentApp.Initialize(serviceSettings, cfg.SecretKey); err != nil {
+	var privateKey []byte
+	var err error
+	if cfg.CryptoKey != "" {
+		privateKey, err = os.ReadFile(cfg.CryptoKey)
+		if err != nil {
+			logger.Log.Error("failed to read crypto key", zap.Error(err))
+		}
+	}
+
+	if err := currentApp.Initialize(serviceSettings, cfg.SecretKey, privateKey); err != nil {
 		logger.Log.Error("failed to init app", zap.Error(err))
 	}
 
