@@ -118,7 +118,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 func WithRSADecryption(priv *rsa.PrivateKey) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		encFn := func(res http.ResponseWriter, req *http.Request) {
-			if priv == nil {
+			if priv == nil || req.Method == http.MethodGet {
 				next.ServeHTTP(res, req)
 				return
 			}

@@ -65,7 +65,16 @@ func main() {
 func run(cfg *config.Config) error {
 	logger.Log.Info(fmt.Sprintf("Running agent with poll interval %d and report interval %d\n", cfg.PollInterval, cfg.ReportInterval))
 	logger.Log.Info(fmt.Sprintf("Metric repository server address is set to %s\n", cfg.ServerIPAddr))
-	a := agent.NewAgent("http://"+cfg.ServerIPAddr, 3, 1, cfg.SecretKey, cfg.CryptoKey)
+
+	var publicKey []byte
+	var err error
+	if cfg.CryptoKey != "" {
+		publicKey, err = os.ReadFile(cfg.CryptoKey)
+		if err != nil {
+			logger.Log.Error("failed to read crypto key", zap.Error(err))
+		}
+	}
+	a := agent.NewAgent("http://"+cfg.ServerIPAddr, 3, 1, cfg.SecretKey, publicKey)
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGKILL, syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 

@@ -2,8 +2,10 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -69,20 +71,20 @@ type Agent struct {
 	client     common.HTTPClient
 	rtm        runtime.MemStats
 	signKey    string
-	publicKey  string
+	publicKey  *rsa.PublicKey
 	Metrics    MetricsSet
 	GMetrics   GopsutilMetricsSet
 	WG         sync.WaitGroup
 }
 
 // NewAgent - конструктор для типа Agent.
-func NewAgent(serverAddr string, clientRetries int, backoffFactor uint, signKey string, publicKey string) *Agent {
+func NewAgent(serverAddr string, clientRetries int, backoffFactor uint, signKey string, publicKey []byte) *Agent {
 	getCounter := new(int64)
 	return &Agent{
 		getCounter: *getCounter,
 		client:     common.NewHTTPClient(serverAddr, clientRetries, backoffFactor),
 		signKey:    signKey,
-		publicKey:  publicKey,
+		publicKey:  common.UnmarshalRSAPublic(publicKey),
 	}
 }
 
@@ -225,6 +227,14 @@ func (a *Agent) IterateStructFieldsAndSend(ctx context.Context, sendInterval tim
 					dst := h.Sum(nil)
 					logger.Log.Info("create hmac signature")
 					headers["HashSHA256"] = hex.EncodeToString(dst)
+				}
+
+				if a.publicKey != nil {
+					encrypted, err := common.EncryptRSA(compressedData.String(), a.publicKey)
+					if err != nil {
+						logger.Log.Error("couldn`t encrypt json data", zap.Error(err))
+					}
+					compressedData = bytes.NewBuffer([]byte(encrypted))
 				}
 
 				res, err := a.client.Post("/updates/", compressedData, headers)
