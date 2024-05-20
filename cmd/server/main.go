@@ -2,12 +2,14 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
-	"net/http"
+	"github.com/sebasttiano/Blackbird.git/internal/server"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"text/template"
 	"time"
@@ -39,10 +41,6 @@ func main() {
 		fmt.Printf("failed to render banner: %v", err)
 	}
 	tmpl.Execute(os.Stdout, templateInfoEntry{buildVersion, buildDate, buildCommit})
-
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
 	cfg, err := config.NewServerConfig()
 
 	if err != nil {
@@ -55,19 +53,11 @@ func main() {
 		return
 	}
 
-	go run(cfg)
-
-	<-done
-	logger.Log.Debug("shutdown signal interrupted")
-	if cfg.FileStoragePath != "" {
-		if err := currentApp.service.Save(); err != nil {
-			logger.Log.Error("couldn`t finally save file after graceful shutdown", zap.Error(err))
-		}
-	}
+	run(cfg)
 }
 
 // run инициализирует заисимости и запускает http сервер.
-func run(cfg *config.Config) error {
+func run(cfg *config.Config) {
 	serviceSettings := &service.ServiceSettings{SaveFilePath: cfg.FileStoragePath, Retries: cfg.RetriesDB, BackoffFactor: cfg.BackoffFactor}
 	if cfg.DatabaseDSN != "" {
 		var conn *sqlx.DB
@@ -112,6 +102,18 @@ func run(cfg *config.Config) error {
 		logger.Log.Debug("metrics were restored")
 	}
 
-	logger.Log.Info("Running server", zap.String("address", cfg.ServerIPAddr))
-	return http.ListenAndServe(cfg.ServerIPAddr, currentApp.views.InitRouter())
+	srv := server.NewServer(cfg.ServerIPAddr, &currentApp.views, currentApp.views.InitRouter())
+
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGKILL, syscall.SIGTERM, syscall.SIGINT)
+	defer cancel()
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	go srv.Start(cfg)
+	go srv.HandleShutdown(ctx, wg, cfg)
+
+	wg.Wait()
+	//logger.Log.Info("Running server", zap.String("address", cfg.ServerIPAddr))
+	//return http.ListenAndServe(cfg.ServerIPAddr, currentApp.views.InitRouter())
 }
