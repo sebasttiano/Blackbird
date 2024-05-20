@@ -75,7 +75,7 @@ func run(cfg *config.Config) error {
 		}
 	}
 	a := agent.NewAgent("http://"+cfg.ServerIPAddr, 3, 1, cfg.SecretKey, publicKey)
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGKILL, syscall.SIGTERM, syscall.SIGINT)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGKILL, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	defer cancel()
 
 	jobsMetrics := make(chan agent.MetricsSet, 10)
@@ -87,7 +87,7 @@ func run(cfg *config.Config) error {
 
 	for i := 0; i < int(cfg.RateLimit); i++ {
 		a.WG.Add(1)
-		go a.IterateStructFieldsAndSend(ctx, time.Duration(cfg.ReportInterval)*time.Second, jobsMetrics, jobsGMetrics)
+		go a.SendMetrics(ctx, time.Duration(cfg.ReportInterval)*time.Second, jobsMetrics, jobsGMetrics)
 	}
 	a.WG.Wait()
 	cfg.WG.Done()

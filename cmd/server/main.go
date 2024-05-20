@@ -104,7 +104,7 @@ func run(cfg *config.Config) {
 
 	srv := server.NewServer(cfg.ServerIPAddr, &currentApp.views, currentApp.views.InitRouter())
 
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGKILL, syscall.SIGTERM, syscall.SIGINT)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGKILL, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	defer cancel()
 
 	wg := &sync.WaitGroup{}
@@ -114,6 +114,4 @@ func run(cfg *config.Config) {
 	go srv.HandleShutdown(ctx, wg, cfg)
 
 	wg.Wait()
-	//logger.Log.Info("Running server", zap.String("address", cfg.ServerIPAddr))
-	//return http.ListenAndServe(cfg.ServerIPAddr, currentApp.views.InitRouter())
 }
