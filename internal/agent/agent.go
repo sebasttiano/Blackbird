@@ -15,6 +15,7 @@ import (
 	"io"
 	"math/rand"
 	"reflect"
+	"regexp"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -78,16 +79,28 @@ type Agent struct {
 	Metrics    MetricsSet
 	GMetrics   GopsutilMetricsSet
 	WG         sync.WaitGroup
+	XRealIP    string
 }
 
 // NewAgent - конструктор для типа Agent.
 func NewAgent(serverAddr string, clientRetries int, backoffFactor uint, signKey string, publicKey []byte) *Agent {
 	getCounter := new(int64)
+	re, _ := regexp.Compile("^.+://(.+$)")
+	addr := re.FindAllStringSubmatch(serverAddr, 1)
+	x, err := common.GetLocalIP(addr[0][1])
+	var xRealIP string
+	if err != nil {
+		logger.Log.Warn("failed to get local IP", zap.String("serverAddr", serverAddr))
+		xRealIP = ""
+	} else {
+		xRealIP = x.String()
+	}
 	return &Agent{
 		getCounter: *getCounter,
 		client:     common.NewHTTPClient(serverAddr, clientRetries, backoffFactor),
 		signKey:    signKey,
 		publicKey:  common.UnmarshalRSAPublic(publicKey),
+		XRealIP:    xRealIP,
 	}
 }
 
@@ -232,7 +245,7 @@ func (a *Agent) SendToRepo(jobsMetrics <-chan MetricsSet, jobsGMetrics <-chan Go
 			return fmt.Errorf("%w: %v", ErrSendToRepo, err)
 		}
 
-		headers := map[string]string{"Content-Type": "application/json", "Content-Encoding": "gzip"}
+		headers := map[string]string{"Content-Type": "application/json", "Content-Encoding": "gzip", "X-Real-IP": a.XRealIP}
 		if a.signKey != "" {
 			data := *compressedData
 			h := hmac.New(sha256.New, []byte(a.signKey))
