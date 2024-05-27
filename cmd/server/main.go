@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"fmt"
 	"github.com/sebasttiano/Blackbird.git/internal/server"
+	"net"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
@@ -58,7 +59,7 @@ func main() {
 
 // run инициализирует заисимости и запускает http сервер.
 func run(cfg *config.Config) {
-	serviceSettings := &service.ServiceSettings{SaveFilePath: cfg.FileStoragePath, Retries: cfg.RetriesDB, BackoffFactor: cfg.BackoffFactor}
+	serviceSettings := &service.ServiceSettings{SaveFilePath: cfg.FileStoragePath, Retries: cfg.RetriesDB, BackoffFactor: cfg.BackoffFactor, TrustedSubnet: nil}
 	if cfg.DatabaseDSN != "" {
 		var conn *sqlx.DB
 		conn, err := sqlx.Connect("pgx", cfg.DatabaseDSN)
@@ -75,6 +76,16 @@ func run(cfg *config.Config) {
 
 	if cfg.StoreInterval == 0 {
 		serviceSettings.SyncSave = true
+	}
+
+	if cfg.TrustedSubnet != "" {
+		_, subnet, err := net.ParseCIDR(cfg.TrustedSubnet)
+		if err != nil {
+			logger.Log.Info("trusted subnet parse failed", zap.Error(err))
+		} else {
+			logger.Log.Info("trusted subnet parsed", zap.String("subnet", subnet.String()))
+			serviceSettings.TrustedSubnet = subnet
+		}
 	}
 
 	var privateKey []byte

@@ -28,7 +28,7 @@ type Config struct {
 	RateLimit       uint64 `env:"RATE_LIMIT"`
 	CryptoKey       string `env:"CRYPTO_KEY" json:"crypto_key"`
 	ConfigFile      string `env:"CONFIG"`
-	TrustedSubnet   string `env:"TRUSTED_SUBNET"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
 	RetriesDB       uint
 	BackoffFactor   uint
 	Profiler        *bool `env:"PROFILER"`

@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -184,5 +185,18 @@ func CheckSign(key string) func(next http.Handler) http.Handler {
 			req.Body = io.NopCloser(bytes.NewReader(b))
 			next.ServeHTTP(res, req)
 		})
+	}
+}
+
+// CheckTrustedSubnet проверяет, что remoteAddr относится к доверенной подсети
+func CheckTrustedSubnet(trustedSubnet *net.IPNet) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		chSubnetFn := func(res http.ResponseWriter, req *http.Request) {
+			if !trustedSubnet.Contains(net.ParseIP(req.RemoteAddr)) {
+				logger.Log.Error("error: client address is forbidden")
+				http.Error(res, "error: client address is forbidden", http.StatusForbidden)
+			}
+		}
+		return http.HandlerFunc(chSubnetFn)
 	}
 }

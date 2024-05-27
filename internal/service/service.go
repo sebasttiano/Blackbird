@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net"
 	"strconv"
 	"time"
 
@@ -50,6 +51,7 @@ type ServiceSettings struct {
 	SaveFilePath  string
 	Retries       uint
 	BackoffFactor uint
+	TrustedSubnet *net.IPNet
 }
 
 // Service реализует интерфейс MetricService.

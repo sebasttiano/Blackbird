@@ -42,5 +42,6 @@ func (a *app) Initialize(s *service.ServiceSettings, key string, privateKey []by
 	a.views.DB = s.Conn
 	a.views.SignKey = key
 	a.views.PrivateKey = common.UnmarshalRSAPrivate(privateKey)
+	a.views.TrustedSubnet = s.TrustedSubnet
 	return nil
 }
