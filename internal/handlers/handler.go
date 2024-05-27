@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -23,10 +24,11 @@ import (
 
 // ServerViews реализует методы-обработчики http запросов
 type ServerViews struct {
-	Service   *service.Service
-	templates templates.HTMLTemplates
-	DB        *sqlx.DB
-	SignKey   string
+	Service    *service.Service
+	templates  templates.HTMLTemplates
+	DB         *sqlx.DB
+	SignKey    string
+	PrivateKey *rsa.PrivateKey
 }
 
 // NewServerViews конструктор для ServerViews
@@ -39,7 +41,7 @@ func (s *ServerViews) InitRouter() chi.Router {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RealIP)
-	r.Use(WithLogging, CheckSign(s.SignKey), GzipMiddleware)
+	r.Use(WithLogging, WithRSADecryption(s.PrivateKey), CheckSign(s.SignKey), GzipMiddleware)
 	r.Mount("/debug", middleware.Profiler())
 
 	r.Route("/", func(r chi.Router) {

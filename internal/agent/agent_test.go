@@ -7,7 +7,7 @@ import (
 )
 
 func BenchmarkAgentMetrics(b *testing.B) {
-	a := NewAgent("localhost:8080", 1, 1, "")
+	a := NewAgent("localhost:8080", 1, 1, "", nil)
 
 	var jobsMetricCount int
 	var jobsGMetricCount int

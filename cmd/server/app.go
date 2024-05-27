@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/repository"
@@ -21,7 +22,7 @@ func newApp() *app {
 }
 
 // Initialize принимает на вход внешние зависимости приложения и инициализирует его
-func (a *app) Initialize(s *service.ServiceSettings, key string) error {
+func (a *app) Initialize(s *service.ServiceSettings, key string, privateKey []byte) error {
 	var err error
 	var repo service.Repository
 
@@ -40,5 +41,6 @@ func (a *app) Initialize(s *service.ServiceSettings, key string) error {
 	a.views = handlers.NewServerViews(a.service)
 	a.views.DB = s.Conn
 	a.views.SignKey = key
+	a.views.PrivateKey = common.UnmarshalRSAPrivate(privateKey)
 	return nil
 }
