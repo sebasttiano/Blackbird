@@ -16,6 +16,6 @@ type CounterMetric struct {
 
 // StoreMetrics хранит массивы с GaugeMetric и CounterMetric
 type StoreMetrics struct {
-	Gauge   []GaugeMetric
-	Counter []CounterMetric
+	Gauge   []GaugeMetric   `json:"gauges,omitempty"`
+	Counter []CounterMetric `json:"counters,omitempty"`
 }

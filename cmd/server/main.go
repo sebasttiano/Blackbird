@@ -121,6 +121,13 @@ func run(cfg *config.Config) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
+	if cfg.GRPSServerIPAddr != "" {
+		grpcSrv := server.NewGRPSServer(currentApp.service)
+		wg.Add(1)
+		go grpcSrv.Start(cfg.GRPSServerIPAddr)
+		go grpcSrv.HandleShutdown(ctx, wg)
+	}
+
 	go srv.Start(cfg)
 	go srv.HandleShutdown(ctx, wg, cfg)
 

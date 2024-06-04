@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"fmt"
 	"go.uber.org/zap"
 	"net/http"
@@ -51,7 +52,7 @@ func main() {
 	}
 
 	cfg.WG.Add(1)
-	go run(cfg) // запускаем сервер
+	go run(cfg)
 
 	if *cfg.Profiler {
 		if err := http.ListenAndServe("localhost:8085", nil); err != nil {
@@ -64,7 +65,13 @@ func main() {
 // run запускает агента.
 func run(cfg *config.Config) error {
 	logger.Log.Info(fmt.Sprintf("Running agent with poll interval %d and report interval %d\n", cfg.PollInterval, cfg.ReportInterval))
-	logger.Log.Info(fmt.Sprintf("Metric repository server address is set to %s\n", cfg.ServerIPAddr))
+	var srvAddr string
+	if cfg.GRPSServerIPAddr != "" {
+		srvAddr = cfg.GRPSServerIPAddr
+	} else {
+		srvAddr = cfg.ServerIPAddr
+	}
+	logger.Log.Info(fmt.Sprintf("Metric repository server address is set to %s\n", srvAddr))
 
 	var publicKey []byte
 	var err error
@@ -74,7 +81,13 @@ func run(cfg *config.Config) error {
 			logger.Log.Error("failed to read crypto key", zap.Error(err))
 		}
 	}
-	a := agent.NewAgent("http://"+cfg.ServerIPAddr, 3, 1, cfg.SecretKey, publicKey)
+
+	a, err := agent.NewAgent("http://"+cfg.ServerIPAddr, 3, 1, cfg.SecretKey, publicKey, cfg.GRPSServerIPAddr)
+	if err != nil && errors.Is(agent.ErrInitSender, err) {
+		logger.Log.Error("failed to initialize agent", zap.Error(err))
+		return err
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGKILL, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	defer cancel()
 
