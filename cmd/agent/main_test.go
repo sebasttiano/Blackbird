@@ -19,7 +19,7 @@ func TestGetMetrics(t *testing.T) {
 	server := httptest.NewServer(router)
 	defer server.Close()
 	serverURL := server.URL
-	a := agent.NewAgent(serverURL, 3, 1, "", nil)
+	a, _ := agent.NewAgent(serverURL, 3, 1, "", nil, "")
 
 	t.Run("Test running intervals", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)

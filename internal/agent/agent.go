@@ -4,6 +4,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"github.com/shirou/gopsutil/v3/mem"
 	"math/rand"
 	"regexp"
 	"runtime"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
-	"github.com/shirou/gopsutil/v3/mem"
 	"go.uber.org/zap"
 )
 

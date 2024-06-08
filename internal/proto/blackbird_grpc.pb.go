@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             v5.26.1
-// source: proto/blackbird.proto
+// source: internal/proto/blackbird.proto
 
 package proto
 
@@ -217,5 +217,5 @@ var Metrics_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/blackbird.proto",
+	Metadata: "internal/proto/blackbird.proto",
 }

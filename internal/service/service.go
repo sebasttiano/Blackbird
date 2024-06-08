@@ -194,7 +194,7 @@ func (s *Service) SetModelValue(ctx context.Context, metrics []*models.Metrics) 
 		switch metric.MType {
 		case "gauge":
 			if metric.Value == nil {
-				return errors.New("value of the gauge is required")
+				return fmt.Errorf("value of the gauge is required. %s", metric.ID)
 			}
 			if err := s.SetValue(ctx, metric.ID, metric.MType, fmt.Sprintf("%.12f", *metric.Value)); err != nil {
 				return err
@@ -202,7 +202,7 @@ func (s *Service) SetModelValue(ctx context.Context, metrics []*models.Metrics) 
 
 		case "counter":
 			if metric.Delta == nil {
-				return errors.New("value of the counter is required")
+				return fmt.Errorf("value of the counter is required. %s", metric.ID)
 			}
 			if err := s.SetValue(ctx, metric.ID, metric.MType, fmt.Sprintf("%d", *metric.Delta)); err != nil {
 				return err

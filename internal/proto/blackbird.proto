@@ -5,56 +5,44 @@ package main;
 
 option go_package = "github.com/sebasttiano/Blackbird/internal/proto";
 
-message CounterMetric {
-  int64 id = 1;
-  string name = 2;
-  int64 value = 3;
+enum MetricType {
+  counter = 0;
+  gauge = 1;
 }
 
-message GaugeMetric {
-  int64 id = 1;
-  string name = 2;
+message Metric {
+  string id = 1;
+  int64 delta = 2;
   double value = 3;
+  MetricType type = 4;
 }
 
 message GetMetricRequest {
-  enum Type {
-    CounterMetric = 0;
-    GaugeMetric = 1;
-  }
-  Type type = 1;
+  Metric metric = 1;
 }
 
 message GetMetricResponse {
-  string value = 1;
+  Metric metric = 1;
   string error = 2;
 }
 
-
 message UpdateMetricRequest {
-  enum Type {
-    CounterMetric = 0;
-    GaugeMetric = 1;
-  }
-  Type type = 1;
-
+  string id = 1;
+  string value = 2;
+  MetricType type = 3;
 }
+
 message UpdateMetricResponse {
   string error = 1;
 }
 
 message UpdateMetricsRequest {
-  enum Type {
-    CounterMetric = 0;
-    GaugeMetric = 1;
-  }
-  repeated Type type = 1;
+  repeated Metric metrics = 1;
 }
 
 message ListMetricsResponse {
-  repeated CounterMetric counters = 1;
-  repeated GaugeMetric gauges = 2;
-  string error = 3;
+  repeated Metric metrics = 1;
+  string error = 2;
 }
 
 service Metrics {
