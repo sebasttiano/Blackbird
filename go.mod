@@ -8,6 +8,7 @@ require (
 	github.com/go-critic/go-critic v0.11.3
 	github.com/golang/mock v1.6.0
 	github.com/gordonklaus/ineffassign v0.1.0
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.1.0
 	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa
 	github.com/jackc/pgx/v5 v5.5.2
 	github.com/jmoiron/sqlx v1.3.5

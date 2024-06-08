@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	pb "github.com/sebasttiano/Blackbird.git/internal/proto"
@@ -19,7 +20,7 @@ type GRPSServer struct {
 
 // NewGRPSServer конструктор для gRPC сервера
 func NewGRPSServer(service *service.Service) *GRPSServer {
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.UnaryInterceptor(logging.UnaryServerInterceptor(handlers.InterceptorLogger(logger.Log))))
 	pb.RegisterMetricsServer(s, &handlers.MetricsServer{Service: service})
 	return &GRPSServer{
 		srv: s,
