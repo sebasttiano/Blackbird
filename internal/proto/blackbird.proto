@@ -23,7 +23,7 @@ message GetMetricRequest {
 
 message GetMetricResponse {
   Metric metric = 1;
-  string error = 2;
+//  string error = 2;
 }
 
 message UpdateMetricRequest {
@@ -33,7 +33,7 @@ message UpdateMetricRequest {
 }
 
 message UpdateMetricResponse {
-  string error = 1;
+//  string error = 1;
 }
 
 message UpdateMetricsRequest {
@@ -42,7 +42,7 @@ message UpdateMetricsRequest {
 
 message ListMetricsResponse {
   repeated Metric metrics = 1;
-  string error = 2;
+//  string error = 2;
 }
 
 service Metrics {

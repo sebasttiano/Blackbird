@@ -20,6 +20,7 @@ import (
 
 // ErrNotSupported общая ошибка, если сервис не поддерживает действие.
 var ErrNotSupported = errors.New("service not supported")
+var ErrUnknownMetricType = errors.New("unknown metric type. only gauge and counter are available")
 
 // ErrRetryDB тип реализующий интерфейс Error, записывает количество ретраев и заворачивает ошибку ф-ция.
 type ErrRetryDB struct {
@@ -118,7 +119,7 @@ func (s *Service) GetValue(ctx context.Context, metricName string, metricType st
 		}
 		return m.Value, nil
 	default:
-		return nil, errors.New("error: unknown metric type. only gauge and counter are available")
+		return nil, fmt.Errorf("%w: %s", ErrUnknownMetricType, metricType)
 	}
 }
 
@@ -172,7 +173,7 @@ func (s *Service) SetValue(ctx context.Context, metricName string, metricType st
 			return err
 		}
 	default:
-		return errors.New("error: unknown metric type. Only gauge and counter are available")
+		return fmt.Errorf("%w: %s", ErrUnknownMetricType, metricType)
 	}
 
 	if s.Settings.SyncSave {
@@ -208,7 +209,7 @@ func (s *Service) SetModelValue(ctx context.Context, metrics []*models.Metrics) 
 				return err
 			}
 		default:
-			return errors.New("error: unknown metric type. Only gauge and counter are available")
+			return fmt.Errorf("%w: %s", ErrUnknownMetricType, metric.MType)
 		}
 	}
 	return nil

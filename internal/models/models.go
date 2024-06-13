@@ -21,7 +21,8 @@ type MetricSet struct {
 }
 
 func (m *MetricSet) CastToMetrics() []*Metrics {
-	var metrics []*Metrics
+
+	metrics := make([]*Metrics, 0, len(m.Set))
 	for _, metric := range m.Set {
 		nm := Metrics(*metric)
 		metrics = append(metrics, &nm)

@@ -7,7 +7,9 @@ import (
 	pb "github.com/sebasttiano/Blackbird.git/internal/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"reflect"
 	"time"
 )
@@ -87,7 +89,18 @@ func (g *GRPCClient) SendToRepo(jobsMetrics <-chan MetricsSet, jobsGMetrics <-ch
 	if len(metricsBatch) > 0 {
 		_, err := g.client.UpdateMetrics(ctx, &pb.UpdateMetricsRequest{Metrics: metricsBatch})
 		if err != nil {
-			logger.Log.Error("failed to send metrics", zap.Error(err))
+			if e, ok := status.FromError(err); ok {
+				switch e.Code() {
+				case codes.DeadlineExceeded:
+					logger.Log.Error("server context deadline exceeded", zap.String("error", e.Message()))
+				case codes.InvalidArgument:
+					logger.Log.Error("server couldn`t parse metrics", zap.String("server error:", e.Message()))
+				default:
+					logger.Log.Error("server error", zap.String("error", e.Message()))
+				}
+			} else {
+				logger.Log.Error("failed to update metrics", zap.Error(err))
+			}
 			return err
 		}
 		logger.Log.Info("send metrics to repository server successfully.")
