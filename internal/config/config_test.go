@@ -44,11 +44,11 @@ func Test_parseServerFlags(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
-		want Config
+		want *Config
 	}{
 		{name: "Check parsing variables",
 			args: []string{"myServer", "-f", "/files/myfile.txt", "-i", "4", "-k", "secret", "-crypto-key", "/tmp/key", "-g", ":3200"},
-			want: Config{FileStoragePath: "/files/myfile.txt", StoreInterval: 4, SecretKey: "secret", CryptoKey: "/tmp/key", GRPSServerIPAddr: ":3200"},
+			want: &Config{FileStoragePath: "/files/myfile.txt", StoreInterval: 4, SecretKey: "secret", CryptoKey: "/tmp/key", GRPSServerIPAddr: ":3200"},
 		},
 	}
 
