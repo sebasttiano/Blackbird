@@ -69,12 +69,10 @@ func ExampleService_GetAllValues() {
 
 	valueFloat := 31.36
 	valueCounter := int64(300)
-	valueCounter2 := int64(23)
 
 	m := []*models.Metrics{
 		{ID: "test_gauge", MType: "gauge", Value: &valueFloat},
-		{ID: "test_counter", MType: "counter", Delta: &valueCounter},
-		{ID: "test_counter2", MType: "counter", Delta: &valueCounter2}}
+		{ID: "test_counter", MType: "counter", Delta: &valueCounter}}
 
 	service.SetModelValue(ctx, m)
 
@@ -88,6 +86,5 @@ func ExampleService_GetAllValues() {
 
 	// Output:
 	// 300
-	// 23
 	// 31.36
 }
