@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"github.com/sebasttiano/Blackbird.git/internal/models"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -49,6 +52,196 @@ func TestUpdateMetric(t *testing.T) {
 			assert.Equal(t, tt.expectedCode, w.Code, "Код ответа не совпадает с ожидаемым")
 			if tt.expectedBody != "" {
 				assert.Contains(t, strings.TrimSpace(w.Body.String()), tt.expectedBody, "Содержимое тело ответа не совпадает с ожидаемым")
+			}
+		})
+	}
+}
+
+func TestUpdateMetricJSON(t *testing.T) {
+	tests := []struct {
+		name         string
+		method       string
+		body         string
+		expectedCode int
+		expectedBody string
+	}{
+		{
+			name:         "Check POST /update counter",
+			method:       http.MethodPost,
+			body:         `{"id": "PollCount", "type": "counter", "delta": 33, "value": "124,5"}`,
+			expectedCode: http.StatusOK,
+			expectedBody: `{"delta":33, "id":"PollCount", "type":"counter", "value":0}`,
+		},
+		{
+			name:         "Check POST /update counter2",
+			method:       http.MethodPost,
+			body:         `{"id": "PollCount", "type": "counter", "delta": 67, "value": "0"}`,
+			expectedCode: http.StatusOK,
+			expectedBody: `{"delta":67, "id":"PollCount", "type":"counter", "value":0}`,
+		},
+		{
+			name:         "Check POST /update gauge",
+			method:       http.MethodPost,
+			body:         `{"id": "allocMem", "type": "gauge", "delta": 0, "value": "124,5"}`,
+			expectedCode: http.StatusOK,
+			expectedBody: `{"id": "allocMem", "type": "gauge", "delta": 0, "value": 0}`,
+		},
+	}
+
+	views := NewServerViews(service.NewService(
+		&service.Settings{SyncSave: false, Retries: 1, BackoffFactor: 1},
+		repository.NewMemStorage()))
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			var metrics models.Metrics
+			_ = json.Unmarshal([]byte(tt.body), &metrics)
+
+			jsonValue, err := json.Marshal(metrics)
+			assert.NoErrorf(t, err, "Ошибка при сериализации в JSON")
+
+			r := httptest.NewRequest(tt.method, "/update/", bytes.NewBuffer(jsonValue))
+			w := httptest.NewRecorder()
+
+			r.Header.Set("Content-Type", "application/json")
+
+			router := views.InitRouter()
+			router.ServeHTTP(w, r)
+			assert.Equal(t, tt.expectedCode, w.Code, "Код ответа не совпадает с ожидаемым")
+			if tt.expectedBody != "" {
+				assert.JSONEq(t, tt.expectedBody, w.Body.String())
+			}
+		})
+	}
+}
+
+func TestUpdateMetricsJSON(t *testing.T) {
+	tests := []struct {
+		name         string
+		method       string
+		body         string
+		expectedCode int
+		expectedBody string
+	}{
+		{
+			name:         "OK Check POST /updates",
+			method:       http.MethodPost,
+			body:         `[{"id": "PollCount", "type": "counter", "delta": 33, "value": "124,5"}, {"id": "allocMem", "type": "gauge", "delta": 0, "value": "124,5"}]`,
+			expectedCode: http.StatusOK,
+			expectedBody: `[{"id":"PollCount","type":"counter","delta":33,"value":0},{"id":"allocMem","type":"gauge","delta":0,"value":0}]`,
+		},
+		{
+			name:         "NOT OK Check POST /updates",
+			method:       http.MethodPost,
+			body:         `[{"metrica": "PollCount", "code": "counter", "delta": 33, "value": "124,5"}, {"metrica": "allocMem", "type": "gauge", "delta": 0, "value": "124,5"}]`,
+			expectedCode: http.StatusBadRequest,
+			expectedBody: `[{"id":"PollCount","type":"counter","delta":33,"value":0},{"id":"allocMem","type":"gauge","delta":0,"value":0}]`,
+		},
+		{
+			name:         "OK Check POST /updates",
+			method:       http.MethodPut,
+			body:         `[{"id": "PollCount", "type": "counter", "delta": 33, "value": "124,5"}, {"id": "allocMem", "type": "gauge", "delta": 0, "value": "124,5"}]`,
+			expectedCode: http.StatusMethodNotAllowed,
+			expectedBody: `[{"id":"PollCount","type":"counter","delta":33,"value":0},{"id":"allocMem","type":"gauge","delta":0,"value":0}]`,
+		},
+	}
+
+	views := NewServerViews(service.NewService(
+		&service.Settings{SyncSave: false, Retries: 1, BackoffFactor: 1},
+		repository.NewMemStorage()))
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			var metrics []*models.Metrics
+			_ = json.Unmarshal([]byte(tt.body), &metrics)
+			jsonValue, err := json.Marshal(metrics)
+			assert.NoErrorf(t, err, "Ошибка при сериализации в JSON")
+
+			r := httptest.NewRequest(tt.method, "/updates/", bytes.NewBuffer(jsonValue))
+			w := httptest.NewRecorder()
+
+			r.Header.Set("Content-Type", "application/json")
+
+			router := views.InitRouter()
+			router.ServeHTTP(w, r)
+			assert.Equal(t, tt.expectedCode, w.Code, "Код ответа не совпадает с ожидаемым")
+			if w.Code == http.StatusOK {
+				if tt.expectedBody != "" {
+					assert.JSONEq(t, tt.expectedBody, w.Body.String())
+				}
+			}
+		})
+	}
+}
+
+func TestGetMetricJSON(t *testing.T) {
+	tests := []struct {
+		name         string
+		method       string
+		body         string
+		add          string
+		expectedCode int
+		expectedBody string
+	}{
+		{
+			name:         "OK counter",
+			method:       http.MethodPost,
+			body:         `{"id": "PollCount", "type": "counter"}`,
+			add:          `{"id": "PollCount", "type": "counter", "delta": 50, "value": "0"}`,
+			expectedCode: http.StatusOK,
+			expectedBody: `{"id":"PollCount", "type":"counter", "delta":50}`,
+		},
+		{
+			name:         "OK gauge",
+			method:       http.MethodPost,
+			body:         `{"id": "alloc", "type": "gauge"}`,
+			add:          `{"id": "alloc", "type": "gauge", "value": 33.1}`,
+			expectedCode: http.StatusOK,
+			expectedBody: `{"id":"alloc", "type":"gauge", "value":33.1}`,
+		},
+		{
+			name:         "NOT OK. NOT FOUND",
+			method:       http.MethodPost,
+			body:         `{"id": "PollCountNOTFOUND", "type": "counter"}`,
+			add:          `{"id": "PollCount", "type": "counter", "delta": 50, "value": "0"}`,
+			expectedCode: http.StatusNotFound,
+			expectedBody: `{"id":"PollCount", "type":"counter", "delta":50}`,
+		},
+	}
+
+	views := NewServerViews(service.NewService(
+		&service.Settings{SyncSave: false, Retries: 1, BackoffFactor: 1},
+		repository.NewMemStorage()))
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			var metrics models.Metrics
+			_ = json.Unmarshal([]byte(tt.add), &metrics)
+			jsonValue, err := json.Marshal(metrics)
+			assert.NoErrorf(t, err, "Ошибка при сериализации в JSON")
+
+			// Add value
+			ra := httptest.NewRequest(http.MethodPost, "/update/", bytes.NewBuffer(jsonValue))
+			wa := httptest.NewRecorder()
+
+			// Get value
+			r := httptest.NewRequest(tt.method, "/value/", bytes.NewBuffer([]byte(tt.body)))
+			w := httptest.NewRecorder()
+
+			r.Header.Set("Content-Type", "application/json")
+			ra.Header.Set("Content-Type", "application/json")
+
+			router := views.InitRouter()
+			router.ServeHTTP(wa, ra)
+			router.ServeHTTP(w, r)
+			assert.Equal(t, tt.expectedCode, w.Code, "Код ответа не совпадает с ожидаемым")
+			if w.Code == http.StatusOK {
+				if tt.expectedBody != "" {
+					assert.JSONEq(t, tt.expectedBody, w.Body.String())
+				}
 			}
 		})
 	}
