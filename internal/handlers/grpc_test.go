@@ -109,7 +109,7 @@ func TestMetricsServer_GetMetric(t *testing.T) {
 			}
 
 			ctx := context.TODO()
-			conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			conn, err := grpc.NewClient("passthrough://bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				logger.Log.Error("NewClientConn err: %v", zap.Error(err))
 			}
