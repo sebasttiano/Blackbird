@@ -25,7 +25,7 @@ type MetricsServer struct {
 }
 
 // ListAllMetrics возвращает все сохраненные метрики
-func (m *MetricsServer) ListAllMetrics(ctx context.Context, in *emptypb.Empty) (*pb.ListMetricsResponse, error) {
+func (m *MetricsServer) ListAllMetrics(ctx context.Context, _ *emptypb.Empty) (*pb.ListMetricsResponse, error) {
 
 	data := m.Service.GetAllValues(ctx)
 	metrics := make([]*pb.Metric, 0, len(data.Counter)+len(data.Gauge))
@@ -82,7 +82,7 @@ func (m *MetricsServer) UpdateMetric(ctx context.Context, in *pb.UpdateMetricReq
 		if errors.Is(err, service.ErrUnknownMetricType) {
 			return nil, status.Errorf(codes.InvalidArgument, `invalid argument: %s - %s`, in.Id, in.Type)
 		}
-		return nil, status.Errorf(codes.Unknown, "faield to save metric: %s", in.Id)
+		return nil, status.Errorf(codes.Unknown, "failed to save metric: %s", in.Id)
 	}
 	return &response, nil
 }
@@ -107,9 +107,8 @@ func (m *MetricsServer) UpdateMetrics(ctx context.Context, in *pb.UpdateMetricsR
 		logger.Log.Error("couldn`t save metric. error: ", zap.Error(err))
 		if errors.Is(err, service.ErrUnknownMetricType) {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid argument")
-		} else {
-			return nil, status.Errorf(codes.Unknown, "failed to save metrics")
 		}
+		return nil, status.Errorf(codes.Unknown, "failed to save metrics")
 	}
 	return &pb.UpdateMetricResponse{}, nil
 }
