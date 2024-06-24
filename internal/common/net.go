@@ -11,7 +11,7 @@ func GetLocalIP(socket string) (net.IP, error) {
 	conn, err := net.Dial("udp", socket)
 	if err != nil {
 		logger.Log.Error("failed to lookup local addr", zap.Error(err))
-		return nil, nil
+		return nil, err
 	}
 	defer conn.Close()
 

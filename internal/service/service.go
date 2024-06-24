@@ -43,8 +43,8 @@ func NewErrRetryDB(retries int, err error) *RetryDBError {
 	return &RetryDBError{retries, err}
 }
 
-// ServiceSettings настройки сервиса.
-type ServiceSettings struct {
+// Settings настройки сервиса.
+type Settings struct {
 	SyncSave      bool
 	FileSave      bool
 	DBSave        bool
@@ -57,14 +57,14 @@ type ServiceSettings struct {
 
 // Service реализует интерфейс MetricService.
 type Service struct {
-	Settings     *ServiceSettings
+	Settings     *Settings
 	fileRestorer FileService
 	repo         Repository
 	retries      []uint
 }
 
 // NewService конструктор для Service.
-func NewService(serviceSettings *ServiceSettings, repo Repository) *Service {
+func NewService(serviceSettings *Settings, repo Repository) *Service {
 	var ri []uint
 	for i := 1; i <= int(serviceSettings.Retries); i++ {
 		ri = append(ri, serviceSettings.BackoffFactor*uint(i)-1)

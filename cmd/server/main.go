@@ -60,7 +60,7 @@ func main() {
 
 // run инициализирует заисимости и запускает http сервер.
 func run(cfg *config.Config) {
-	serviceSettings := &service.ServiceSettings{SaveFilePath: cfg.FileStoragePath, Retries: cfg.RetriesDB, BackoffFactor: cfg.BackoffFactor, TrustedSubnet: nil}
+	serviceSettings := &service.Settings{SaveFilePath: cfg.FileStoragePath, Retries: cfg.RetriesDB, BackoffFactor: cfg.BackoffFactor, TrustedSubnet: nil}
 	if cfg.DatabaseDSN != "" {
 		var conn *sqlx.DB
 		conn, err := sqlx.Connect("pgx", cfg.DatabaseDSN)

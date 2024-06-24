@@ -35,7 +35,7 @@ func TestUpdateMetric(t *testing.T) {
 	}
 
 	views := NewServerViews(service.NewService(
-		&service.ServiceSettings{SyncSave: false, Retries: 1, BackoffFactor: 1},
+		&service.Settings{SyncSave: false, Retries: 1, BackoffFactor: 1},
 		repository.NewMemStorage()))
 
 	for _, tt := range tests {

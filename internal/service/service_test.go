@@ -10,7 +10,7 @@ import (
 
 func ExampleService_GetValue() {
 	repo := repository.NewMemStorage()
-	service := NewService(&ServiceSettings{Retries: 1, BackoffFactor: 1}, repo)
+	service := NewService(&Settings{Retries: 1, BackoffFactor: 1}, repo)
 	ctx := context.TODO()
 
 	service.SetValue(ctx, "test_gauge", "gauge", "3.33")
@@ -38,7 +38,7 @@ func ExampleService_GetValue() {
 
 func ExampleService_GetModelValue() {
 	repo := repository.NewMemStorage()
-	service := NewService(&ServiceSettings{Retries: 1, BackoffFactor: 1}, repo)
+	service := NewService(&Settings{Retries: 1, BackoffFactor: 1}, repo)
 	ctx := context.TODO()
 
 	valueFloat := 123.456
@@ -65,7 +65,7 @@ func ExampleService_GetModelValue() {
 
 func ExampleService_GetAllValues() {
 	repo := repository.NewMemStorage()
-	service := NewService(&ServiceSettings{Retries: 1, BackoffFactor: 1}, repo)
+	service := NewService(&Settings{Retries: 1, BackoffFactor: 1}, repo)
 	ctx := context.TODO()
 
 	valueFloat := 31.36

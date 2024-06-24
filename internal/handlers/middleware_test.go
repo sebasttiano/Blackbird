@@ -45,7 +45,7 @@ func TestOnlyPostAllowed(t *testing.T) {
 }
 
 func TestGzipMiddleware(t *testing.T) {
-	views := NewServerViews(service.NewService(&service.ServiceSettings{SyncSave: false}, repository.NewMemStorage()))
+	views := NewServerViews(service.NewService(&service.Settings{SyncSave: false}, repository.NewMemStorage()))
 	srv := httptest.NewServer(views.InitRouter())
 	defer srv.Close()
 
@@ -119,7 +119,7 @@ func TestCheckTrustedSubnet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			views := NewServerViews(service.NewService(&service.ServiceSettings{SyncSave: false}, repository.NewMemStorage()))
+			views := NewServerViews(service.NewService(&service.Settings{SyncSave: false}, repository.NewMemStorage()))
 			views.TrustedSubnet = tt.trustedSubnet
 			srv := httptest.NewServer(views.InitRouter())
 			defer srv.Close()
