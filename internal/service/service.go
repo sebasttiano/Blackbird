@@ -22,25 +22,25 @@ import (
 var ErrNotSupported = errors.New("service not supported")
 var ErrUnknownMetricType = errors.New("unknown metric type. only gauge and counter are available")
 
-// ErrRetryDB тип реализующий интерфейс Error, записывает количество ретраев и заворачивает ошибку ф-ция.
-type ErrRetryDB struct {
+// RetryDBError тип реализующий интерфейс Error, записывает количество ретраев и заворачивает ошибку ф-ция.
+type RetryDBError struct {
 	Retries int
 	Err     error
 }
 
 // Error метод интерфейса записывает количество ретраев и оригинальную ошибку.
-func (e ErrRetryDB) Error() string {
+func (e RetryDBError) Error() string {
 	return fmt.Sprintf("function failed after %d retries. last error was %v", e.Retries, e.Err)
 }
 
 // Unwrap метод интерфейса возвращает упакованную оригинальную ошибку.
-func (e ErrRetryDB) Unwrap() error {
+func (e RetryDBError) Unwrap() error {
 	return e.Err
 }
 
-// NewErrRetryDB конструктор для  ErrRetryDB
-func NewErrRetryDB(retries int, err error) *ErrRetryDB {
-	return &ErrRetryDB{retries, err}
+// NewErrRetryDB конструктор для  RetryDBError
+func NewErrRetryDB(retries int, err error) *RetryDBError {
+	return &RetryDBError{retries, err}
 }
 
 // ServiceSettings настройки сервиса.

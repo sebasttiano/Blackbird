@@ -5,7 +5,6 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"github.com/sebasttiano/Blackbird.git/internal/server"
 	"net"
 	_ "net/http/pprof"
 	"os"
@@ -14,6 +13,8 @@ import (
 	"syscall"
 	"text/template"
 	"time"
+
+	"github.com/sebasttiano/Blackbird.git/internal/server"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"

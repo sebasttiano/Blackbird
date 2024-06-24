@@ -2,13 +2,14 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/sebasttiano/Blackbird.git/internal/repository"
-	"github.com/sebasttiano/Blackbird.git/internal/service"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/sebasttiano/Blackbird.git/internal/repository"
+	"github.com/sebasttiano/Blackbird.git/internal/service"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestUpdateMetric(t *testing.T) {

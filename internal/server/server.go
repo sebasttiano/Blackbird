@@ -3,15 +3,17 @@ package server
 import (
 	"context"
 	"errors"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/sebasttiano/Blackbird.git/internal/config"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 
-	"go.uber.org/zap"
 	"net/http"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 // Server http

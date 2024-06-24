@@ -3,10 +3,11 @@ package common
 import (
 	"bytes"
 	"fmt"
-	"github.com/klauspost/compress/gzip"
 	"io"
 	"net/http"
 	"slices"
+
+	"github.com/klauspost/compress/gzip"
 
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 )

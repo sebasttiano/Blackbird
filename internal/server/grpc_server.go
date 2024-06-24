@@ -2,6 +2,9 @@ package server
 
 import (
 	"context"
+	"net"
+	"sync"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
@@ -9,8 +12,6 @@ import (
 	"github.com/sebasttiano/Blackbird.git/internal/service"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"net"
-	"sync"
 )
 
 // GRPSServer реалиузет gRPC сервер.

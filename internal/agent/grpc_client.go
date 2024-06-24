@@ -3,6 +3,9 @@ package agent
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	pb "github.com/sebasttiano/Blackbird.git/internal/proto"
 	"go.uber.org/zap"
@@ -10,8 +13,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
-	"reflect"
-	"time"
 )
 
 // GRPCClient реализующий интерфейс Sender, отправляет на gRPC сервер

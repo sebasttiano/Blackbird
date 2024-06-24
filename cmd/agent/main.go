@@ -6,7 +6,6 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -14,6 +13,8 @@ import (
 	"syscall"
 	"text/template"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/sebasttiano/Blackbird.git/internal/agent"
 	"github.com/sebasttiano/Blackbird.git/internal/config"

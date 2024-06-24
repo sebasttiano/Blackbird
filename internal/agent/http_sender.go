@@ -8,12 +8,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"reflect"
+
 	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
 	"go.uber.org/zap"
-	"io"
-	"reflect"
 )
 
 // HTTPSender реализующий интерфейс Sender, отправляет на REST API

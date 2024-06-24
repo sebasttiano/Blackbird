@@ -2,13 +2,14 @@ package agent
 
 import (
 	"context"
+	"net/http/httptest"
+	"testing"
+	"time"
+
 	"github.com/sebasttiano/Blackbird.git/internal/handlers"
 	"github.com/sebasttiano/Blackbird.git/internal/repository"
 	"github.com/sebasttiano/Blackbird.git/internal/service"
 	"github.com/stretchr/testify/assert"
-	"net/http/httptest"
-	"testing"
-	"time"
 )
 
 func TestGetMetrics(t *testing.T) {

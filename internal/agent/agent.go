@@ -4,13 +4,14 @@ package agent
 import (
 	"context"
 	"errors"
-	"github.com/shirou/gopsutil/v3/mem"
 	"math/rand"
 	"regexp"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/shirou/gopsutil/v3/mem"
 
 	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"

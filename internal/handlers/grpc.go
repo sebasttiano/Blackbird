@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
 	pb "github.com/sebasttiano/Blackbird.git/internal/proto"
@@ -27,7 +28,7 @@ type MetricsServer struct {
 func (m *MetricsServer) ListAllMetrics(ctx context.Context, in *emptypb.Empty) (*pb.ListMetricsResponse, error) {
 
 	data := m.Service.GetAllValues(ctx)
-	var metrics []*pb.Metric
+	metrics := make([]*pb.Metric, 0, len(data.Counter)+len(data.Gauge))
 
 	for _, value := range data.Gauge {
 		metrics = append(metrics, &pb.Metric{Id: value.Name, Value: value.Value, Type: pb.MetricType_gauge})
@@ -80,9 +81,8 @@ func (m *MetricsServer) UpdateMetric(ctx context.Context, in *pb.UpdateMetricReq
 		logger.Log.Error("couldn`t save metric. error: ", zap.Error(err))
 		if errors.Is(err, service.ErrUnknownMetricType) {
 			return nil, status.Errorf(codes.InvalidArgument, `invalid argument: %s - %s`, in.Id, in.Type)
-		} else {
-			return nil, status.Errorf(codes.Unknown, "faield to save metric: %s", in.Id)
 		}
+		return nil, status.Errorf(codes.Unknown, "faield to save metric: %s", in.Id)
 	}
 	return &response, nil
 }

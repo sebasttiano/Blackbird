@@ -5,11 +5,12 @@ package config
 import (
 	"encoding/json"
 	"flag"
-	"github.com/sebasttiano/Blackbird.git/internal/logger"
-	"go.uber.org/zap"
 	"os"
 	"strconv"
 	"sync"
+
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
+	"go.uber.org/zap"
 
 	"github.com/caarlos0/env/v6"
 )

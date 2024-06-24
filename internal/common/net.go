@@ -1,9 +1,10 @@
 package common
 
 import (
+	"net"
+
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"go.uber.org/zap"
-	"net"
 )
 
 func GetLocalIP(socket string) (net.IP, error) {
