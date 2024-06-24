@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"github.com/sebasttiano/Blackbird.git/internal/models"
 	pb "github.com/sebasttiano/Blackbird.git/internal/proto"
@@ -20,7 +19,8 @@ var ErrInternalGrpc = errors.New("internal grpc server error")
 var ErrBadRequestGrpc = errors.New("bad request")
 
 type MetricsServer struct {
-	Service *service.Service
+	//Service *service.Service
+	Service service.MetricService
 	pb.UnimplementedMetricsServer
 }
 

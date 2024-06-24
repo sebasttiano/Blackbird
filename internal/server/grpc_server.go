@@ -40,7 +40,7 @@ func (s *GRPSServer) Start(addr string) {
 	}
 }
 
-// HandleShutdown закрывает http сервер.
+// HandleShutdown закрывает grpc сервер.
 func (s *GRPSServer) HandleShutdown(ctx context.Context, wg *sync.WaitGroup) {
 
 	defer wg.Done()

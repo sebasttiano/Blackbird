@@ -81,9 +81,7 @@ func (g *GRPCClient) SendToRepo(jobsMetrics <-chan MetricsSet, jobsGMetrics <-ch
 			metrics.Value = gaugeVal
 			metrics.Type = pb.MetricType_gauge
 		}
-		if metrics.Id == "GCCPUFraction" {
-			fmt.Println(metrics.Delta)
-		}
+
 		metricsBatch = append(metricsBatch, &metrics)
 	}
 
