@@ -38,8 +38,8 @@ func (e RetryDBError) Unwrap() error {
 	return e.Err
 }
 
-// NewErrRetryDB конструктор для  RetryDBError
-func NewErrRetryDB(retries int, err error) *RetryDBError {
+// NewRetryDBError конструктор для  RetryDBError
+func NewRetryDBError(retries int, err error) *RetryDBError {
 	return &RetryDBError{retries, err}
 }
 
@@ -285,7 +285,7 @@ func (s *Service) Retry(ctx context.Context, retryDelays []uint, f func(ctx cont
 					logger.Log.Error(fmt.Sprintf("Request to server failed. retrying in %d seconds... Retries left %d\n", delay, retries), zap.Error(err))
 					time.Sleep(time.Duration(delay) * time.Second)
 					if retries == 0 {
-						return NewErrRetryDB(retries, err)
+						return NewRetryDBError(retries, err)
 					}
 				} else {
 					return err
