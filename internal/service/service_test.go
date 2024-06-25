@@ -229,9 +229,9 @@ func TestService_Restore(t *testing.T) {
 			if tt.err != nil {
 				if assert.Errorf(t, err, err.Error()) {
 					assert.Equal(t, tt.err, err)
-				} else {
-					assert.NoError(t, err)
 				}
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -240,6 +240,7 @@ func TestService_Restore(t *testing.T) {
 func TestService_RetryDBError(t *testing.T) {
 
 	testError := NewRetryDBError(3, errors.New("failed to connect to database"))
+	assert.IsType(t, &RetryDBError{}, testError)
 	assert.Equal(t, testError.Error(), "function failed after 3 retries. last error was failed to connect to database")
 	assert.Equal(t, testError.Unwrap().Error(), "failed to connect to database")
 }
