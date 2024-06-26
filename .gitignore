@@ -26,3 +26,5 @@ vendor/
 
 
 files/store.json
+cover.txt
+Makefile

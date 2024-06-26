@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 
@@ -24,11 +25,12 @@ import (
 
 // ServerViews реализует методы-обработчики http запросов
 type ServerViews struct {
-	Service    *service.Service
-	templates  templates.HTMLTemplates
-	DB         *sqlx.DB
-	SignKey    string
-	PrivateKey *rsa.PrivateKey
+	Service       *service.Service
+	templates     templates.HTMLTemplates
+	DB            *sqlx.DB
+	SignKey       string
+	PrivateKey    *rsa.PrivateKey
+	TrustedSubnet *net.IPNet
 }
 
 // NewServerViews конструктор для ServerViews
@@ -41,6 +43,9 @@ func (s *ServerViews) InitRouter() chi.Router {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RealIP)
+	if s.TrustedSubnet != nil {
+		r.Use(CheckTrustedSubnet(s.TrustedSubnet))
+	}
 	r.Use(WithLogging, WithRSADecryption(s.PrivateKey), CheckSign(s.SignKey), GzipMiddleware)
 	r.Mount("/debug", middleware.Profiler())
 

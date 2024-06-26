@@ -22,7 +22,7 @@ func newApp() *app {
 }
 
 // Initialize принимает на вход внешние зависимости приложения и инициализирует его
-func (a *app) Initialize(s *service.ServiceSettings, key string, privateKey []byte) error {
+func (a *app) Initialize(s *service.Settings, key string, privateKey []byte) error {
 	var err error
 	var repo service.Repository
 
@@ -42,5 +42,6 @@ func (a *app) Initialize(s *service.ServiceSettings, key string, privateKey []by
 	a.views.DB = s.Conn
 	a.views.SignKey = key
 	a.views.PrivateKey = common.UnmarshalRSAPrivate(privateKey)
+	a.views.TrustedSubnet = s.TrustedSubnet
 	return nil
 }

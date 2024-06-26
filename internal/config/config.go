@@ -5,33 +5,36 @@ package config
 import (
 	"encoding/json"
 	"flag"
-	"github.com/sebasttiano/Blackbird.git/internal/logger"
-	"go.uber.org/zap"
 	"os"
 	"strconv"
 	"sync"
+
+	"github.com/sebasttiano/Blackbird.git/internal/logger"
+	"go.uber.org/zap"
 
 	"github.com/caarlos0/env/v6"
 )
 
 // Config содержит все передаваемые переменные нужные для приложения
 type Config struct {
-	ServerIPAddr    string `env:"ADDRESS" json:"address"`
-	FileStoragePath string `env:"FILE_STORAGE_PATH" json:"store_file"`
-	DatabaseDSN     string `env:"DATABASE_DSN" json:"database_dsn"`
-	LogLevel        string `env:"LOG_LEVEL" envDefault:"DEBUG"`
-	SecretKey       string `env:"KEY"`
-	StoreInterval   int    `env:"STORE_INTERVAL" json:"store_interval"`
-	RestoreMetrics  *bool  `env:"RESTORE" json:"restore"`
-	PollInterval    int64  `env:"POLL_INTERVAL" json:"poll_interval"`
-	ReportInterval  int64  `env:"REPORT_INTERVAL" json:"report_interval"`
-	RateLimit       uint64 `env:"RATE_LIMIT"`
-	CryptoKey       string `env:"CRYPTO_KEY" json:"crypto_key"`
-	ConfigFile      string `env:"CONFIG"`
-	RetriesDB       uint
-	BackoffFactor   uint
-	Profiler        *bool `env:"PROFILER"`
-	WG              sync.WaitGroup
+	ServerIPAddr     string `env:"ADDRESS" json:"address"`
+	FileStoragePath  string `env:"FILE_STORAGE_PATH" json:"store_file"`
+	DatabaseDSN      string `env:"DATABASE_DSN" json:"database_dsn"`
+	LogLevel         string `env:"LOG_LEVEL" envDefault:"DEBUG"`
+	SecretKey        string `env:"KEY"`
+	StoreInterval    int    `env:"STORE_INTERVAL" json:"store_interval"`
+	RestoreMetrics   *bool  `env:"RESTORE" json:"restore"`
+	PollInterval     int64  `env:"POLL_INTERVAL" json:"poll_interval"`
+	ReportInterval   int64  `env:"REPORT_INTERVAL" json:"report_interval"`
+	RateLimit        uint64 `env:"RATE_LIMIT"`
+	CryptoKey        string `env:"CRYPTO_KEY" json:"crypto_key"`
+	ConfigFile       string `env:"CONFIG"`
+	TrustedSubnet    string `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
+	RetriesDB        uint
+	BackoffFactor    uint
+	Profiler         *bool  `env:"PROFILER"`
+	GRPSServerIPAddr string `env:"GRPS_SERVER_ADDRESS" json:"grps_server_address"`
+	WG               sync.WaitGroup
 }
 
 func (c *Config) SetDefault() {
@@ -142,6 +145,13 @@ func NewAgentConfig() (*Config, error) {
 		}
 	}
 
+	if config.GRPSServerIPAddr == "" {
+		config.GRPSServerIPAddr = flags.GRPSServerIPAddr
+		if config.GRPSServerIPAddr == "" {
+			config.GRPSServerIPAddr = configJSON.GRPSServerIPAddr
+		}
+	}
+
 	config.SetDefault()
 	return &config, nil
 }
@@ -157,18 +167,20 @@ func parseAgentFlags() Config {
 	flagProfiler := flag.Bool("profiler", false, "enable profiler")
 	flagCryptoKey := flag.String("crypto-key", "", "path to file with public key")
 	flagConfigFile := flag.String("config", "", "path to config file")
+	grpcServer := flag.String("g", "", "gRPC server address")
 
 	flag.Parse()
 
 	return Config{
-		ServerIPAddr:   *serverIPAddr,
-		PollInterval:   *pollInterval,
-		ReportInterval: *reportInterval,
-		SecretKey:      *flagSecretKey,
-		RateLimit:      *flagRateLimit,
-		Profiler:       flagProfiler,
-		CryptoKey:      *flagCryptoKey,
-		ConfigFile:     *flagConfigFile,
+		ServerIPAddr:     *serverIPAddr,
+		PollInterval:     *pollInterval,
+		ReportInterval:   *reportInterval,
+		SecretKey:        *flagSecretKey,
+		RateLimit:        *flagRateLimit,
+		Profiler:         flagProfiler,
+		CryptoKey:        *flagCryptoKey,
+		ConfigFile:       *flagConfigFile,
+		GRPSServerIPAddr: *grpcServer,
 	}
 }
 
@@ -176,29 +188,61 @@ func parseAgentFlags() Config {
 func NewServerConfig() (*Config, error) {
 	flags := parseServerFlags()
 	config := Config{RetriesDB: 1, BackoffFactor: 1}
+	configJSON := Config{}
 
 	if err := env.Parse(&config); err != nil {
 		return &Config{}, err
 	}
 
+	if config.ConfigFile == "" {
+		config.ConfigFile = flags.ConfigFile
+	}
+
+	if config.ConfigFile != "" {
+		data, err := os.ReadFile(config.ConfigFile)
+		if err != nil {
+			logger.Log.Error("failed to read config file", zap.String("file", config.ConfigFile), zap.Error(err))
+			return nil, err
+		}
+		if err := json.Unmarshal(data, &configJSON); err != nil {
+			logger.Log.Error("failed to unmarshal config file. check your json", zap.String("file", config.ConfigFile), zap.Error(err))
+			return nil, err
+		}
+	}
+
 	if config.ServerIPAddr == "" {
 		config.ServerIPAddr = flags.ServerIPAddr
+		if config.ServerIPAddr == "" {
+			config.ServerIPAddr = configJSON.ServerIPAddr
+		}
 	}
 
 	if config.StoreInterval == 0 {
 		config.StoreInterval = flags.StoreInterval
+		if config.StoreInterval == 0 {
+			config.StoreInterval = configJSON.StoreInterval
+		}
 	}
 
 	if config.FileStoragePath == "" {
 		config.FileStoragePath = flags.FileStoragePath
+		if config.FileStoragePath == "" {
+			config.FileStoragePath = configJSON.FileStoragePath
+		}
 	}
 
 	if config.RestoreMetrics == nil {
 		config.RestoreMetrics = flags.RestoreMetrics
+		if config.RestoreMetrics == nil {
+			config.RestoreMetrics = configJSON.RestoreMetrics
+		}
 	}
 
 	if config.DatabaseDSN == "" {
 		config.DatabaseDSN = flags.DatabaseDSN
+		if config.DatabaseDSN == "" {
+			config.DatabaseDSN = configJSON.DatabaseDSN
+		}
 	}
 
 	if config.SecretKey == "" {
@@ -207,10 +251,27 @@ func NewServerConfig() (*Config, error) {
 
 	if config.CryptoKey == "" {
 		config.CryptoKey = flags.CryptoKey
+		if config.CryptoKey == "" {
+			config.CryptoKey = configJSON.CryptoKey
+		}
 	}
 
 	if config.ConfigFile == "" {
 		config.ConfigFile = flags.ConfigFile
+	}
+
+	if config.TrustedSubnet == "" {
+		config.TrustedSubnet = flags.TrustedSubnet
+		if config.TrustedSubnet == "" {
+			config.TrustedSubnet = configJSON.TrustedSubnet
+		}
+	}
+
+	if config.GRPSServerIPAddr == "" {
+		config.GRPSServerIPAddr = flags.GRPSServerIPAddr
+		if config.GRPSServerIPAddr == "" {
+			config.GRPSServerIPAddr = configJSON.GRPSServerIPAddr
+		}
 	}
 
 	config.SetDefault()
@@ -227,6 +288,8 @@ func parseServerFlags() Config {
 	secretKey := flag.String("k", "", "secret key for digital signature")
 	cryptoKey := flag.String("crypto-key", "", "path to file with private key")
 	configFile := flag.String("config", "", "path to config file")
+	trustedSubnet := flag.String("t", "", "trusted subnet")
+	grpcServer := flag.String("g", "", "address and port to run gRPC server")
 
 	var restoreOnStart *bool
 	flag.BoolFunc("r", "restore saved metrics on start", func(restore string) error {
@@ -244,13 +307,15 @@ func parseServerFlags() Config {
 	flag.Parse()
 
 	return Config{
-		ServerIPAddr:    *serverIPAddr,
-		StoreInterval:   *serverStoreInterval,
-		FileStoragePath: *fileStoragePath,
-		RestoreMetrics:  restoreOnStart,
-		DatabaseDSN:     *databaseDSN,
-		SecretKey:       *secretKey,
-		CryptoKey:       *cryptoKey,
-		ConfigFile:      *configFile,
+		ServerIPAddr:     *serverIPAddr,
+		StoreInterval:    *serverStoreInterval,
+		FileStoragePath:  *fileStoragePath,
+		RestoreMetrics:   restoreOnStart,
+		DatabaseDSN:      *databaseDSN,
+		SecretKey:        *secretKey,
+		CryptoKey:        *cryptoKey,
+		ConfigFile:       *configFile,
+		TrustedSubnet:    *trustedSubnet,
+		GRPSServerIPAddr: *grpcServer,
 	}
 }

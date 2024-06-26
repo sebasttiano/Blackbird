@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net"
 	"strconv"
 	"time"
 
@@ -19,30 +20,31 @@ import (
 
 // ErrNotSupported общая ошибка, если сервис не поддерживает действие.
 var ErrNotSupported = errors.New("service not supported")
+var ErrUnknownMetricType = errors.New("unknown metric type. only gauge and counter are available")
 
-// ErrRetryDB тип реализующий интерфейс Error, записывает количество ретраев и заворачивает ошибку ф-ция.
-type ErrRetryDB struct {
+// RetryDBError тип реализующий интерфейс Error, записывает количество ретраев и заворачивает ошибку ф-ция.
+type RetryDBError struct {
 	Retries int
 	Err     error
 }
 
 // Error метод интерфейса записывает количество ретраев и оригинальную ошибку.
-func (e ErrRetryDB) Error() string {
+func (e RetryDBError) Error() string {
 	return fmt.Sprintf("function failed after %d retries. last error was %v", e.Retries, e.Err)
 }
 
 // Unwrap метод интерфейса возвращает упакованную оригинальную ошибку.
-func (e ErrRetryDB) Unwrap() error {
+func (e RetryDBError) Unwrap() error {
 	return e.Err
 }
 
-// NewErrRetryDB конструктор для  ErrRetryDB
-func NewErrRetryDB(retries int, err error) *ErrRetryDB {
-	return &ErrRetryDB{retries, err}
+// NewRetryDBError конструктор для  RetryDBError
+func NewRetryDBError(retries int, err error) *RetryDBError {
+	return &RetryDBError{retries, err}
 }
 
-// ServiceSettings настройки сервиса.
-type ServiceSettings struct {
+// Settings настройки сервиса.
+type Settings struct {
 	SyncSave      bool
 	FileSave      bool
 	DBSave        bool
@@ -50,18 +52,19 @@ type ServiceSettings struct {
 	SaveFilePath  string
 	Retries       uint
 	BackoffFactor uint
+	TrustedSubnet *net.IPNet
 }
 
 // Service реализует интерфейс MetricService.
 type Service struct {
-	Settings     *ServiceSettings
+	Settings     *Settings
 	fileRestorer FileService
 	repo         Repository
 	retries      []uint
 }
 
 // NewService конструктор для Service.
-func NewService(serviceSettings *ServiceSettings, repo Repository) *Service {
+func NewService(serviceSettings *Settings, repo Repository) *Service {
 	var ri []uint
 	for i := 1; i <= int(serviceSettings.Retries); i++ {
 		ri = append(ri, serviceSettings.BackoffFactor*uint(i)-1)
@@ -116,7 +119,7 @@ func (s *Service) GetValue(ctx context.Context, metricName string, metricType st
 		}
 		return m.Value, nil
 	default:
-		return nil, errors.New("error: unknown metric type. only gauge and counter are available")
+		return nil, fmt.Errorf("%w: %s", ErrUnknownMetricType, metricType)
 	}
 }
 
@@ -170,7 +173,7 @@ func (s *Service) SetValue(ctx context.Context, metricName string, metricType st
 			return err
 		}
 	default:
-		return errors.New("error: unknown metric type. Only gauge and counter are available")
+		return fmt.Errorf("%w: %s", ErrUnknownMetricType, metricType)
 	}
 
 	if s.Settings.SyncSave {
@@ -192,7 +195,7 @@ func (s *Service) SetModelValue(ctx context.Context, metrics []*models.Metrics) 
 		switch metric.MType {
 		case "gauge":
 			if metric.Value == nil {
-				return errors.New("value of the gauge is required")
+				return fmt.Errorf("value of the gauge is required. %s", metric.ID)
 			}
 			if err := s.SetValue(ctx, metric.ID, metric.MType, fmt.Sprintf("%.12f", *metric.Value)); err != nil {
 				return err
@@ -200,13 +203,13 @@ func (s *Service) SetModelValue(ctx context.Context, metrics []*models.Metrics) 
 
 		case "counter":
 			if metric.Delta == nil {
-				return errors.New("value of the counter is required")
+				return fmt.Errorf("value of the counter is required. %s", metric.ID)
 			}
 			if err := s.SetValue(ctx, metric.ID, metric.MType, fmt.Sprintf("%d", *metric.Delta)); err != nil {
 				return err
 			}
 		default:
-			return errors.New("error: unknown metric type. Only gauge and counter are available")
+			return fmt.Errorf("%w: %s", ErrUnknownMetricType, metric.MType)
 		}
 	}
 	return nil
@@ -282,7 +285,7 @@ func (s *Service) Retry(ctx context.Context, retryDelays []uint, f func(ctx cont
 					logger.Log.Error(fmt.Sprintf("Request to server failed. retrying in %d seconds... Retries left %d\n", delay, retries), zap.Error(err))
 					time.Sleep(time.Duration(delay) * time.Second)
 					if retries == 0 {
-						return NewErrRetryDB(retries, err)
+						return NewRetryDBError(retries, err)
 					}
 				} else {
 					return err

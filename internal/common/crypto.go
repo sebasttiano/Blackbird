@@ -9,13 +9,6 @@ import (
 	"encoding/pem"
 )
 
-// MarshalRSAPrivate
-func MarshalRSAPrivate(priv *rsa.PrivateKey) []byte {
-	return pem.EncodeToMemory(&pem.Block{
-		Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv),
-	})
-}
-
 // UnmarshalRSAPrivate bytes to private key
 func UnmarshalRSAPrivate(data []byte) *rsa.PrivateKey {
 	block, _ := pem.Decode(data)
@@ -30,18 +23,6 @@ func UnmarshalRSAPrivate(data []byte) *rsa.PrivateKey {
 	return priv
 }
 
-// MarshalRSAPublic public key to bytes
-func MarshalRSAPublic(pub *rsa.PublicKey) []byte {
-
-	pubPKCS := x509.MarshalPKCS1PublicKey(pub)
-	pubBytes := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PUBLIC KEY",
-		Bytes: pubPKCS,
-	})
-
-	return pubBytes
-}
-
 // UnmarshalRSAPublic bytes to public key type
 func UnmarshalRSAPublic(data []byte) *rsa.PublicKey {
 	block, _ := pem.Decode(data)
@@ -53,22 +34,6 @@ func UnmarshalRSAPublic(data []byte) *rsa.PublicKey {
 		return nil
 	}
 	return pub
-}
-
-// GenerateKey makes private and public RSA keys
-func GenerateKey(size int) ([]byte, []byte, error) {
-	reader := rand.Reader
-	bitSize := size
-
-	key, err := rsa.GenerateKey(reader, bitSize)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	pubKeyStr := MarshalRSAPublic(&key.PublicKey)
-	privKeyStr := MarshalRSAPrivate(key)
-
-	return pubKeyStr, privKeyStr, nil
 }
 
 // EncryptRSA encrypts rsa message

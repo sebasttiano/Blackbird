@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+package main;
+
+option go_package = "github.com/sebasttiano/Blackbird/internal/proto";
+
+enum MetricType {
+  counter = 0;
+  gauge = 1;
+}
+
+message Metric {
+  string id = 1;
+  int64 delta = 2;
+  double value = 3;
+  MetricType type = 4;
+}
+
+message GetMetricRequest {
+  Metric metric = 1;
+}
+
+message GetMetricResponse {
+  Metric metric = 1;
+}
+
+message UpdateMetricRequest {
+  string id = 1;
+  string value = 2;
+  MetricType type = 3;
+}
+
+message UpdateMetricResponse {
+}
+
+message UpdateMetricsRequest {
+  repeated Metric metrics = 1;
+}
+
+message ListMetricsResponse {
+  repeated Metric metrics = 1;
+}
+
+service Metrics {
+  rpc GetMetric(GetMetricRequest) returns (GetMetricResponse);
+  rpc UpdateMetric(UpdateMetricRequest) returns (UpdateMetricResponse);
+  rpc UpdateMetrics(UpdateMetricsRequest) returns (UpdateMetricResponse);
+  rpc ListAllMetrics(google.protobuf.Empty) returns (ListMetricsResponse);
+}
+
+

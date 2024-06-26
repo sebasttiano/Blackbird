@@ -2,30 +2,23 @@
 package agent
 
 import (
-	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/rsa"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"github.com/sebasttiano/Blackbird.git/internal/models"
-	"io"
 	"math/rand"
-	"reflect"
+	"regexp"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/shirou/gopsutil/v3/mem"
+
 	"github.com/sebasttiano/Blackbird.git/internal/common"
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
-	"github.com/shirou/gopsutil/v3/mem"
 	"go.uber.org/zap"
 )
 
+var ErrInitSender = errors.New("failed to init sender")
 var ErrSendToRepo = errors.New("failed to send to repo")
 
 // MetricsSet - структура в которой перечислены основные runtime метрики приложения.
@@ -68,27 +61,53 @@ type GopsutilMetricsSet struct {
 	CPUUtilization float64
 }
 
+type Sender interface {
+	SendToRepo(jobsMetrics <-chan MetricsSet, jobsGMetrics <-chan GopsutilMetricsSet) error
+}
+
 // Agent - тип, который реализует сущность агент.
 type Agent struct {
 	getCounter int64
-	client     common.HTTPClient
 	rtm        runtime.MemStats
-	signKey    string
-	publicKey  *rsa.PublicKey
 	Metrics    MetricsSet
 	GMetrics   GopsutilMetricsSet
 	WG         sync.WaitGroup
+	Sender     Sender
 }
 
 // NewAgent - конструктор для типа Agent.
-func NewAgent(serverAddr string, clientRetries int, backoffFactor uint, signKey string, publicKey []byte) *Agent {
+func NewAgent(serverAddr string, clientRetries int, backoffFactor uint, signKey string, publicKey []byte, grpcServer string) (*Agent, error) {
 	getCounter := new(int64)
+	re, _ := regexp.Compile("^.+://(.+$)")
+	addr := re.FindAllStringSubmatch(serverAddr, 1)
+	x, err := common.GetLocalIP(addr[0][1])
+	var xRealIP string
+	if err != nil {
+		logger.Log.Warn("failed to get local IP", zap.String("serverAddr", serverAddr))
+		xRealIP = ""
+	} else {
+		xRealIP = x.String()
+	}
+
+	if grpcServer != "" {
+		gClient, err := NewGRPCClient(grpcServer)
+		if err != nil {
+			return nil, err
+		}
+		return &Agent{
+			getCounter: *getCounter,
+			Sender:     gClient,
+		}, nil
+	}
 	return &Agent{
 		getCounter: *getCounter,
-		client:     common.NewHTTPClient(serverAddr, clientRetries, backoffFactor),
-		signKey:    signKey,
-		publicKey:  common.UnmarshalRSAPublic(publicKey),
-	}
+		Sender: &HTTPSender{
+			client:    common.NewHTTPClient(serverAddr, clientRetries, backoffFactor),
+			signKey:   signKey,
+			publicKey: common.UnmarshalRSAPublic(publicKey),
+			XRealIP:   xRealIP,
+		},
+	}, nil
 }
 
 // GetMetrics - метод для сбора runtime метрик приложения с определенным интервалом
@@ -172,100 +191,12 @@ func (a *Agent) SendMetrics(ctx context.Context, sendInterval time.Duration, job
 	for {
 		select {
 		case <-tick.C:
-			a.SendToRepo(jobsMetrics, jobsGMetrics)
+			a.Sender.SendToRepo(jobsMetrics, jobsGMetrics)
 		case <-ctx.Done():
 			tick.Stop()
-			a.SendToRepo(jobsMetrics, jobsGMetrics)
+			a.Sender.SendToRepo(jobsMetrics, jobsGMetrics)
 			a.WG.Done()
 			return
 		}
 	}
-}
-
-// SendToRepo собирает из каналов метрики, формирует и шлет http запрос в репозиторий
-func (a *Agent) SendToRepo(jobsMetrics <-chan MetricsSet, jobsGMetrics <-chan GopsutilMetricsSet) error {
-	var metric MetricsSet
-	var metricG GopsutilMetricsSet
-	var metrics models.Metrics
-	var metricsBatch []models.Metrics
-	var value reflect.Value
-
-	select {
-	case metric = <-jobsMetrics:
-		value = reflect.ValueOf(metric)
-	case metricG = <-jobsGMetrics:
-		value = reflect.ValueOf(metricG)
-	}
-	numFields := value.NumField()
-	structType := value.Type()
-
-	for i := 0; i < numFields; i++ {
-		field := structType.Field(i)
-		fieldValue := value.Field(i)
-		metrics.ID = field.Name
-
-		if fieldValue.CanInt() {
-			counterVal := fieldValue.Int()
-			metrics.Delta = &counterVal
-			metrics.MType = "counter"
-		} else {
-			gaugeVal := fieldValue.Float()
-			metrics.Value = &gaugeVal
-			metrics.MType = "gauge"
-		}
-
-		metricsBatch = append(metricsBatch, metrics)
-	}
-
-	if len(metricsBatch) > 0 {
-		// Make an HTTP post request
-		reqBody, err := json.Marshal(metricsBatch)
-		if err != nil {
-			logger.Log.Error("couldn`t serialize to json", zap.Error(err))
-			return fmt.Errorf("%w: %v", ErrSendToRepo, err)
-
-		}
-
-		compressedData, err := common.Compress(reqBody)
-		if err != nil {
-			logger.Log.Error("failed to compress data to gzip", zap.Error(err))
-			return fmt.Errorf("%w: %v", ErrSendToRepo, err)
-		}
-
-		headers := map[string]string{"Content-Type": "application/json", "Content-Encoding": "gzip"}
-		if a.signKey != "" {
-			data := *compressedData
-			h := hmac.New(sha256.New, []byte(a.signKey))
-			if _, errWr := h.Write(data.Bytes()); errWr != nil {
-				logger.Log.Error("failed to create hmac signature")
-				return fmt.Errorf("%w: %v", ErrSendToRepo, err)
-			}
-			dst := h.Sum(nil)
-			logger.Log.Info("create hmac signature")
-			headers["HashSHA256"] = hex.EncodeToString(dst)
-		}
-
-		if a.publicKey != nil {
-			encrypted, err := common.EncryptRSA(compressedData.String(), a.publicKey)
-			if err != nil {
-				logger.Log.Error("couldn`t encrypt json data", zap.Error(err))
-			}
-			compressedData = bytes.NewBuffer([]byte(encrypted))
-		}
-
-		res, err := a.client.Post("/updates/", compressedData, headers)
-		if err != nil {
-			logger.Log.Error(fmt.Sprintf("couldn`t send metrics batch of length %d", len(metricsBatch)), zap.Error(err))
-			return fmt.Errorf("%w: %v", ErrSendToRepo, err)
-		}
-		answer, _ := io.ReadAll(res.Body)
-		res.Body.Close()
-
-		if res.StatusCode != 200 {
-			logger.Log.Error(fmt.Sprintf("error: server return code %d: message: %s", res.StatusCode, answer))
-			return fmt.Errorf("%w: %v", ErrSendToRepo, err)
-		}
-		logger.Log.Info("send metrics to repository server successfully.")
-	}
-	return nil
 }

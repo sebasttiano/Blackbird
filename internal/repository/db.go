@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/jackc/pgerrcode"
@@ -13,23 +12,6 @@ import (
 	"github.com/sebasttiano/Blackbird.git/internal/logger"
 	"go.uber.org/zap"
 )
-
-// RetryError ошибка если все ретраи зафейлились
-type RetryError struct {
-	err error
-}
-
-// NewRetryError конструктор для RetryError
-func NewRetryError(retries int, err error) *RetryError {
-	return &RetryError{err: fmt.Errorf("function failed after %d retries. last error was %w", retries, err)}
-}
-func (re *RetryError) Error() string {
-	return fmt.Sprintf("%v", re.err)
-}
-
-func (re *RetryError) Unwrap() error {
-	return re.err
-}
 
 // pgError алиас для *pgconn.PgError
 var pgError *pgconn.PgError
